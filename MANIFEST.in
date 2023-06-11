@@ -1,0 +1,8 @@
+include papnt/config.ini
+include VERSION
+include REQUIREMENTS
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+
+recursive-include docs

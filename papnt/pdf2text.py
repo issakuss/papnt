@@ -40,7 +40,8 @@ def _extr_xmltext(i_path: str, port: str='8070') -> str:
             continue
         break
     # client.process("processFulltextDocument", "./test/samplepdfs/", output="./test_out/", consolidate_citations=True, tei_coordinates=True, force=True, verbose=True)
-    _, _, text = client.process_pdf('processFulltextDocument', i_path, **CFG)
+    _, _, text = client.process_pdf(
+        'processFulltextDocument', str(i_path), **CFG)
     proc.kill()
     return text
 

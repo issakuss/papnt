@@ -17,7 +17,8 @@ DEBUGMODE = False
 
 
 def add_records_from_local_pdfpath(
-        database: Database, propnames: dict, input_pdfpath: str):
+        database: Database, propnames: dict, input_pdfpath: str,
+        run_ocr: bool):
 
     doi = pdf_to_doi(input_pdfpath)
     if doi is None:
@@ -26,9 +27,10 @@ def add_records_from_local_pdfpath(
     prop |= {'info': {'checkbox': True}}
     database.create(prop)
 
-    page = Page(database.fetch_newest_record()['results'][0]['id'])
-    page.create_page(f'Fulltext-{prop["Name"]["title"][0]["text"]["content"]}',
-                     md2children(pdf2text(input_pdfpath)))
+    if run_ocr:
+        page = Page(database.fetch_newest_record()['results'][0]['id'])
+        pagename = f'Fulltext-{prop["Name"]["title"][0]["text"]["content"]}'
+        page.create_page(pagename, md2children(pdf2text(input_pdfpath)))
 
 
 def _update_record_from_doi(

@@ -9,6 +9,8 @@ from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
 from .notionprop import NotionPropMaker
 from .prop2entry import notionprop_to_entry
+from .page import Page, md2children
+from .pdf2text  import pdf2text
 
 
 DEBUGMODE = False
@@ -23,6 +25,10 @@ def add_records_from_local_pdfpath(
     prop = NotionPropMaker().from_doi(doi, propnames)
     prop |= {'info': {'checkbox': True}}
     database.create(prop)
+
+    page = Page(database.fetch_newest_record()['results'][0]['id'])
+    page.create_page(f'Fulltext-{prop["Name"]["title"][0]["text"]["content"]}',
+                     md2children(pdf2text(input_pdfpath)))
 
 
 def _update_record_from_doi(

@@ -3,6 +3,7 @@ import string
 from unidecode import unidecode
 
 from crossref.restful import Works
+import arxiv
 
 from .const import SKIPWORDS, CROSSREF_TO_BIB
 
@@ -58,8 +59,31 @@ def to_notionprop(content: Optional[Any],
 
 class NotionPropMaker:
     def from_doi(self, doi: str, propnames: dict) -> dict:
-        doi_style_info = self._fetch_info_from_doi(doi)
+        if 'arXiv' in doi:
+            doi_style_info = self._fetch_info_from_arxiv(doi)
+        else:
+            doi_style_info = self._fetch_info_from_doi(doi)
         return self._make_properties(doi_style_info, propnames)
+
+    def _fetch_info_from_arxiv(self, doi: str) -> dict:
+        doi = doi.replace('//', '/')
+        arxiv_id = doi.split('arXiv.')[1]
+        paper = next(arxiv.Client().results(arxiv.Search(id_list=[arxiv_id])))
+
+        authors = []
+        for author in paper.authors:
+            authors.append({
+                'given': ' '.join(author.name.split(' ')[:-1]),
+                'family': author.name.split(' ')[-1]})
+        
+        date = paper.published
+        return {
+            'author': authors,
+            'published': {'date-parts': [[date.year, date.month, date.day]]},
+            'type': 'journal-article',
+            'title': [paper.title],
+            'container-title': ['arXiv'],
+            'DOI': doi}
 
     def _fetch_info_from_doi(self, doi: str) -> dict:
         doi = doi.replace('//', '/')

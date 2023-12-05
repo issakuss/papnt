@@ -1,5 +1,8 @@
 from typing import List
 import re
+import subprocess
+from time import sleep
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -19,8 +22,6 @@ def _extr_enclosed(text: str, left: str, right: str) -> List[str]:
 
 
 def _extr_xmltext(i_path: str, port: str='8070') -> str:
-    client = GrobidClient(f'http://localhost:{port}')
-    # client.process("processFulltextDocument", "./test/samplepdfs/", output="./test_out/", consolidate_citations=True, tei_coordinates=True, force=True, verbose=True)
     CFG = dict(
         generateIDs=False,
         consolidate_header=False,
@@ -29,7 +30,18 @@ def _extr_xmltext(i_path: str, port: str='8070') -> str:
         include_raw_affiliations=False,
         tei_coordinates=False,
         segment_sentences=False)
+    dir_grobid = (Path(__file__).parents[1] / 'external/grobid').resolve()
+    proc = subprocess.Popen(['./gradlew', 'run'], cwd=str(dir_grobid))
+    while True:
+        try:
+            client = GrobidClient(f'http://localhost:{port}')
+        except:
+            sleep(1.)
+            continue
+        break
+    # client.process("processFulltextDocument", "./test/samplepdfs/", output="./test_out/", consolidate_citations=True, tei_coordinates=True, force=True, verbose=True)
     _, _, text = client.process_pdf('processFulltextDocument', i_path, **CFG)
+    proc.kill()
     return text
 
 

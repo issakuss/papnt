@@ -51,6 +51,12 @@ def _extr_body(xmltext: str) -> List[str]:
         xmltext, rf'<div\s+xmlns="{TEIURL}">', rf'</div>')
 
 
+def _replace_bibreftag(text: str) -> str:
+    pattern = r'<ref type="bibr" target="([^"]+)">([^<]+)</ref>'
+    replacement = r'<__bibref__ target="\1">\2</__bibref__>'
+    return re.sub(pattern, replacement, text)
+
+
 def _strip_text(text: str, newline: List[str], head1: List[str], rm: List[str]
                ) -> str:
 
@@ -61,6 +67,7 @@ def _strip_text(text: str, newline: List[str], head1: List[str], rm: List[str]
 
 
 def _strip_body(text: str) -> str:
+    text = _replace_bibreftag(text)
     return _strip_text(
         text, newline=['<p>'], head1=['<head>'], rm=[
             '</head>', '</p>', '</ref>', r'<ref\s+type="bibr".*?>',
@@ -96,6 +103,18 @@ def _extr_table(xmltext: str) -> pd.DataFrame:
         r'</figure>')
 
 
+def _extr_bib(xmltext: str) -> dict:
+    def extr_doi(bib: str) -> str:
+        doi = _extr_enclosed(bib, '<idno type="DOI">', '</idno')
+        if len(doi) == 0:
+            return ''
+        return 'https://doi.org/' + doi[0]
+
+    bibs = _extr_enclosed(xmltext, '<biblStruct\s+xml:', 'biblStruct>')
+    return {_extr_enclosed(bib, 'id="', '">')[0]: extr_doi(bib)
+            for bib in bibs}
+
+
 def _insert_fig(textlist: List[str], figtext: pd.DataFrame) -> List[str]:
     for _, (tag, head, desc) in figtext.iterrows():
         idx_insert = np.where([tag in text for text in textlist])[0]
@@ -115,16 +134,25 @@ def _insert_tab(textlist: List[str], tabtext: pd.DataFrame) -> List[str]:
     return textlist.tolist()
 
 
+def _embed_links(text: str, links: dict) -> str:
+    for key, link in links.items():
+        text = text.replace(f'<__bibref__ target="#{key}">',
+                            f'<__bibref__ target="{link}">')
+    return text
+
+
 def pdf2text(i_path: str) -> str:
     xmltext = _extr_xmltext(i_path)
     figtext = _extr_figure(xmltext)
     tabtext = _extr_table(xmltext)
+    biblinks = _extr_bib(xmltext)
 
     bodytext_list = _extr_body(xmltext)
     bodytext_list = _insert_fig(bodytext_list, figtext)
     bodytext_list = _insert_tab(bodytext_list, tabtext)
 
-    return _strip_body('\n\n'.join(bodytext_list))
+    bodytext = _strip_body('\n\n'.join(bodytext_list))
+    return _embed_links(bodytext, biblinks)
 
 
 if __name__ == '__main__':

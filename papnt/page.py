@@ -1,4 +1,5 @@
 from typing import Optional, List
+import re
 from pathlib import Path
 
 from notion_client import Client
@@ -26,11 +27,33 @@ class Page:
 def md2children(texts: str):
     # https://developers.notion.com/reference/block
     def make_text(text: str) -> dict:
+        def split_ref(text: str) -> List[str]:
+            SPLIT = '__SPLITMARK__'
+            if SPLIT in text:
+                raise ValueError()
+            text = text.replace('<__bibref__', SPLIT + '<__bibref__')
+            text = text.replace('</__bibref__>', '</__bibref__>' + SPLIT)
+            return text.split(SPLIT)
+
+        def make_text_prop(text: str) -> dict:
+            if re.search('<__bibref.*?</__bibref__>', text) is None:
+                return {'type': 'text', 'text': {'content': text}}
+            reftarget = re.findall(r'target="([^"]*)"', text)[0]
+            pattern = '(<__bibref([^>]+)>)|(</__bibref__>)'
+            if reftarget == '':
+                return {'type': 'text', 'text': {
+                    'content': re.sub(pattern, '', text)}}
+            return {'type': 'text',
+                    'text': {
+                        'content': re.sub(pattern, '', text),
+                        'link': {'url': reftarget}}}
+
+        split_text = split_ref(text)
         return {
             'object': 'block',
             'type': 'paragraph',
             'paragraph': {
-                'rich_text': [{'type': 'text', 'text': {'content': text}}]}}
+                'rich_text': [make_text_prop(text) for text in split_text]}}
 
     def make_heading(text: str, level: int) -> dict:
         return {
@@ -57,6 +80,7 @@ def md2children(texts: str):
 
 if __name__ == '__main__':
     text = pdf2text('./test/samplepdfs/sample1.pdf')
+    # text = 'aiueo<ref type="bibr" target="https://google.com">kakiku</ref>keko'
     children = md2children(text)
 
     page = Page('d5c90701b59e4c68b4d638bcb9271c4b')

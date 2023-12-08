@@ -27,10 +27,16 @@ class Page:
 def md2children(texts: str):
     # https://developers.notion.com/reference/block
     def make_text(text: str) -> dict:
-        def split_ref(text: str) -> List[str]:
+        def split_text(text: str) -> List[str]:
             SPLIT = '__SPLITMARK__'
             if SPLIT in text:
                 raise ValueError()
+
+            APILIMIT = 2000
+            if len(text) >= APILIMIT:
+                text = text[:APILIMIT - 1] + SPLIT + text[APILIMIT - 1:]
+
+            # By bibref
             text = text.replace('<__bibref__', SPLIT + '<__bibref__')
             text = text.replace('</__bibref__>', '</__bibref__>' + SPLIT)
             return text.split(SPLIT)
@@ -48,12 +54,12 @@ def md2children(texts: str):
                         'content': re.sub(pattern, '', text),
                         'link': {'url': reftarget}}}
 
-        split_text = split_ref(text)
+        text_split = split_text(text)
         return {
             'object': 'block',
             'type': 'paragraph',
             'paragraph': {
-                'rich_text': [make_text_prop(text) for text in split_text]}}
+                'rich_text': [make_text_prop(text) for text in text_split]}}
 
     def make_heading(text: str, level: int) -> dict:
         return {
@@ -62,21 +68,17 @@ def md2children(texts: str):
             f'heading_{level}': {
                 'rich_text': [{'type': 'text', 'text': {'content': text}}]}}
 
-    children = []
-    for text in texts.split('\n\n'):
-        if len(text) == 0:
-            continue
-        elif text.startswith('# '):
-            child = make_heading(text.strip('# '), 1)
+    def md2child(text: str) -> dict:
+        if text.startswith('# '):
+            return make_heading(text.strip('# '), 1)
         elif text.startswith('## '):
-            child = make_heading(text.strip('# '), 2)
+            return make_heading(text.strip('# '), 2)
         elif text.startswith('### '):
-            child = make_heading(text.strip('# '), 3)
+            return make_heading(text.strip('# '), 3)
         else:
-            child = make_text(text)
-        children.append(child)
-    return children
+            return make_text(text)
 
+    return [md2child(text) for text in texts.split('\n\n') if text]
 
 if __name__ == '__main__':
     text = pdf2text('./test/samplepdfs/sample1.pdf')

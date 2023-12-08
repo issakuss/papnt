@@ -118,6 +118,12 @@ def make_abbrjson_from_bibpath(input_bibpath: str, special_abbr: dict):
     lister.listup(special_abbr).save(input_bibpath.replace('.bib', '.json'))
 
 
+def add_fulltext_from_pdf_on_notion_url(pdfprop: str, url: str):
+    record_id = url.split('/')[-1].split('-')[-1].split('?')[0]
+    record = Page(record_id).notion.pages.retrieve(record_id)
+    _create_fulltext_from_record(record, pdfprop)
+
+
 if __name__ == '__main__':
     from .misc import load_config
     from .database import DatabaseInfo
@@ -125,6 +131,9 @@ if __name__ == '__main__':
     config = load_config(Path(__file__).parent / 'config.ini')
     database = Database(DatabaseInfo())
 
+    add_fulltext_from_pdf_on_notion_url(
+        config['propnames']['pdf'],
+        'https://www.notion.so/issakuss/Glasser2016-0f4a53d07c3243d2aa67cd773314119e?pvs=4')
     ocrrun = config['fulltext']['autorun']
     add_records_from_local_pdfpath(
         database, config['propnames'], 'test/samplepdfs/sample1.pdf', ocrrun)

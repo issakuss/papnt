@@ -8,7 +8,9 @@ from .mainfunc import (
     add_records_from_local_pdfpath,
     update_unchecked_records_from_doi,
     update_unchecked_records_from_uploadedpdf,
-    make_bibfile_from_records, make_abbrjson_from_bibpath)
+    make_bibfile_from_records, make_abbrjson_from_bibpath,
+    add_fulltext_from_pdf_on_notion_url)
+
 
 global config, database
 config = load_config(Path(__file__).parent / 'config.ini')
@@ -76,6 +78,16 @@ def makebib(target: str):
     make_abbrjson_from_bibpath(
         f'{config["misc"]["dir_save_bib"]}/{target}.bib',
         config['abbr'])
+
+
+@main.command()
+@click.argument('notionurl')
+def ft(notionurl: str):
+    """Extract fulltext by PDF file uploaded on entered page URL"""
+    if not _config_is_ok():
+        return
+    add_fulltext_from_pdf_on_notion_url(
+        database, config['propnames']['pdf'], notionurl)
 
 
 if __name__ == '__main__':

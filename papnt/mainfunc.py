@@ -9,8 +9,8 @@ from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
 from .notionprop import NotionPropMaker
 from .prop2entry import notionprop_to_entry
-from .page import Page, md2children
-from .pdf2text  import pdf2text
+from .page import Page
+from .pdf2text  import pdf2children
 
 
 DEBUGMODE = False
@@ -31,7 +31,7 @@ def add_records_from_local_pdfpath(
     if run_ocr:
         page = Page(database.fetch_newest_record()['results'][0]['id'])
         pagename = f'Fulltext-{prop["Name"]["title"][0]["text"]["content"]}'
-        page.create_page(pagename, md2children(pdf2text(input_pdfpath)))
+        page.create_page(pagename, pdf2children(input_pdfpath))
 
 
 def _update_record_from_doi(
@@ -63,7 +63,7 @@ def _create_fulltext_from_record(record: dict, pdfpropname: str):
     fileurl = fileurl[0]['file']['url']
     _fetch_pdf(fileurl, PATH_TEMP_PDF)
     page = Page(record['id'])
-    page.create_page(pagename, md2children(pdf2text(PATH_TEMP_PDF)))
+    page.create_page(pagename, pdf2children(PATH_TEMP_PDF))
     PATH_TEMP_PDF.unlink()
 
 

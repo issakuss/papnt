@@ -4,8 +4,8 @@ import subprocess
 from time import sleep
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
+from bs4 import BeautifulSoup
 
 from grobid_client.grobid_client import GrobidClient
 
@@ -13,12 +13,13 @@ from grobid_client.grobid_client import GrobidClient
 TEIURL = r'http://www.tei-c.org/ns/1.0'
 
 
-def _extr_enclosed(text: str, left: str, right: str) -> List[str]:
-    pattern = rf'{left}(.+?){right}'
-    found = re.findall(pattern, text, re.DOTALL)
-    found = [re.sub(rf'{left}', '', item) for item in found]
-    found = [re.sub(rf'{right}', '', item) for item in found]
-    return found
+def _change_tag(soup, tag, new_tag_name: str):
+    # https://www.lifewithpython.com/2020/07/python-processing-html-bs4.html
+    new_tag = soup.new_tag(new_tag_name)
+    new_tag.attrs = tag.attrs.copy()
+    tag.wrap(new_tag)
+    tag.unwrap()
+    return new_tag
 
 
 def _extr_xmltext(i_path: str, port: str='8070') -> str:
@@ -39,123 +40,186 @@ def _extr_xmltext(i_path: str, port: str='8070') -> str:
             sleep(1.)
             continue
         break
-    # client.process("processFulltextDocument", "./test/samplepdfs/", output="./test_out/", consolidate_citations=True, tei_coordinates=True, force=True, verbose=True)
     _, _, text = client.process_pdf(
         'processFulltextDocument', str(i_path), **CFG)
     proc.kill()
+    if text.startswith('[GENERAL] Could not create temprorary file'):
+        raise ValueError('Check permission: ' + text)
     return text
 
 
-def _extr_body(xmltext: str) -> List[str]:
-    return _extr_enclosed(
-        xmltext, rf'<div\s+xmlns="{TEIURL}">', rf'</div>')
+def _make_simple_rich_text(text: List[str] | str) -> dict:
+    if isinstance(text, str):
+        text = [text]
+    rich_text = []
+    for text_ in text:
+        rich_text.append({'text': {'content': text_}})
+    return rich_text
 
 
-def _replace_bibreftag(text: str) -> str:
-    pattern = r'<ref type="bibr" target="([^"]+)">([^<]+)</ref>'
-    replacement = r'<__bibref__ target="\1">\2</__bibref__>'
-    return re.sub(pattern, replacement, text)
+def _make_paragraph_block(rich_text: List[dict] | str) -> dict:
+    return {'object': 'block', 'paragraph': {'rich_text': rich_text}}
 
 
-def _strip_text(text: str, newline: List[str], head1: List[str], rm: List[str]
-               ) -> str:
-
-    text = re.sub(rf'{"|".join(newline)}', '\n\n', text)
-    text = re.sub(rf'{"|".join(head1)}', '# ', text)
-    text = re.sub(rf'{"|".join(rm)}', '', text)
-    return text
-
-
-def _strip_body(text: str) -> str:
-    text = _replace_bibreftag(text)
-    return _strip_text(
-        text, newline=['<p>'], head1=['<head>'], rm=[
-            '</head>', '</p>', '</ref>', r'<ref\s+type="bibr".*?>',
-            r'<ref\s+type="formula".*?>', r'<ref\s+type="table".*?>',
-            r'<ref\s+type="figure".*?>',
-        ])
+def _make_heading_block(text: str, level: int) -> dict:
+    return {
+        'object': 'block',
+        'type': f'heading_{level}',
+        f'heading_{level}': {
+            'rich_text': [{'type': 'text', 'text': {'content': text}}]}}
 
 
-def _extr_figtab(xmltext: str, left: str, right: str) -> pd.DataFrame:
-    text_list = _extr_enclosed(xmltext, rf'{left}', rf'{right}')
-
-    descs = []
-    for text in text_list:
-        desc = _extr_enclosed(text, rf'<figDesc>', rf'</figDesc>')
-        if len(desc) == 0:
-            continue
-        head = _extr_enclosed(text, rf'<head>', rf'</head>')
-        head = head[0] if head else ''
-        tag = _extr_enclosed(text, '"', '"')[0]
-        descs.append((tag, head, desc[0]))
-
-    return pd.DataFrame(descs, columns=['tag', 'head', 'desc'])
-
-
-def _extr_figure(xmltext: str) -> pd.DataFrame:
-    return _extr_figtab(
-        xmltext, rf'<figure\s+xmlns="{TEIURL}"\s+xml:id', r'</figure>')
-
-
-def _extr_table(xmltext: str) -> pd.DataFrame:
-    return _extr_figtab(
-        xmltext, rf'<figure\s+xmlns="{TEIURL}"\s+type="table"\s+xml:id=',
-        r'</figure>')
-
-
-def _extr_bib(xmltext: str) -> dict:
-    def extr_doi(bib: str) -> str:
-        doi = _extr_enclosed(bib, '<idno type="DOI">', '</idno')
-        if len(doi) == 0:
+def _extr_bib(soup: BeautifulSoup) -> dict:
+    def extr_doi(bib: BeautifulSoup) -> str:
+        doi = bib.find('idno', {'type': 'DOI'})
+        if doi is None:
             return ''
-        return 'https://doi.org/' + doi[0]
+        return f'https://doi.org/{doi.get_text()}'
 
-    bibs = _extr_enclosed(xmltext, '<biblStruct\s+xml:', 'biblStruct>')
-    return {_extr_enclosed(bib, 'id="', '">')[0]: extr_doi(bib)
-            for bib in bibs}
-
-
-def _insert_fig(textlist: List[str], figtext: pd.DataFrame) -> List[str]:
-    for _, (tag, head, desc) in figtext.iterrows():
-        idx_insert = np.where([tag in text for text in textlist])[0]
-        idx_insert = -1 if len(idx_insert) == 0 else idx_insert[0] + 1
-        inserted = f'**{head}** {desc}'
-        textlist = np.insert(np.array(textlist), idx_insert, inserted)
-    return textlist.tolist()
+    bibs = soup.find_all('biblStruct', {'xml:id': True})
+    return {bib['xml:id']: extr_doi(bib) for bib in bibs}
 
 
-def _insert_tab(textlist: List[str], tabtext: pd.DataFrame) -> List[str]:
-    if len(tabtext) == 0:
-        return textlist
-    for _, (tag, head, desc) in list(tabtext.iterrows())[::-1]:
-        idx_insert = np.where([tag in text for text in textlist])[0][0] + 1
-        inserted = f'**{head}** {desc}'
-        textlist = np.insert(np.array(textlist), idx_insert, inserted)
-    return textlist.tolist()
+def _extr_elements(soup: BeautifulSoup):
+    bodyset = soup.find_all('div', {'xmlns': TEIURL})
+    elements = []
+    for bodies in bodyset:
+        for body in bodies.find_all(['head', 'p']):
+            elements.append(body)
+    return elements 
 
 
-def _embed_links(text: str, links: dict) -> str:
-    for key, link in links.items():
-        text = text.replace(f'<__bibref__ target="#{key}">',
-                            f'<__bibref__ target="{link}">')
-    return text
+def _extr_figtab_info(figtabs: BeautifulSoup) -> pd.DataFrame:
+    fig_info = []
+    for figtab in figtabs:
+        tag = figtab['xml:id']
+        head = figtab.find('head').get_text()
+        desc = figtab.find('figDesc').get_text()
+        if desc.startswith(head):
+            desc = desc[len(head):]
+        fig_info.append((tag, head, desc))
+    return pd.DataFrame(fig_info, columns=['tag', 'head', 'desc'])
 
 
-def pdf2text(i_path: str) -> str:
-    xmltext = _extr_xmltext(i_path)
-    figtext = _extr_figure(xmltext)
-    tabtext = _extr_table(xmltext)
-    biblinks = _extr_bib(xmltext)
+def _extr_fig_info(soup: BeautifulSoup) -> pd.DataFrame:
+    figures = soup.find_all('figure', {'type': False})
+    return _extr_figtab_info(figures)
 
-    bodytext_list = _extr_body(xmltext)
-    bodytext_list = _insert_fig(bodytext_list, figtext)
-    bodytext_list = _insert_tab(bodytext_list, tabtext)
 
-    bodytext = _strip_body('\n\n'.join(bodytext_list))
-    return _embed_links(bodytext, biblinks)
+def _extr_tab_info(soup: BeautifulSoup) -> pd.DataFrame:
+    tables = soup.find_all('figure', {'type': 'table'})
+    return _extr_figtab_info(tables)
+
+
+def _find_ids_insert(elements: List[BeautifulSoup], info: pd.DataFrame
+                     ) -> List[int]:
+    ids_insert = []
+    for _, (tag, _, _) in info.iterrows():
+        for idx_insert, element in enumerate(elements):
+            if element.find('ref', {'target': f'#{tag}'}): break
+        ids_insert.append(idx_insert + 1)
+    return ids_insert
+
+
+def _insert_figtab(elements: List[BeautifulSoup], info: pd.DataFrame
+                   ) -> List[dict]:
+    info['ids_insert'] = _find_ids_insert(elements, info)
+    info = info.sort_values('ids_insert', ascending=False)
+    for _, (_, head, desc, idx_insert) in info.iterrows():
+        to_insert = BeautifulSoup(f'<p>**{head}** {desc}</p>', 'xml').find('p')
+        elements.insert(idx_insert, to_insert)
+
+
+def _insert_fig(elements: List[BeautifulSoup], fig_info: pd.DataFrame
+                ) -> List[dict]:
+    return _insert_figtab(elements, fig_info)
+
+
+def _insert_tab(elements: List[BeautifulSoup], tab_info: pd.DataFrame
+                ) -> List[dict]:
+    return _insert_figtab(elements, tab_info)
+    
+
+def _elements2children_biblink(elements: List[BeautifulSoup], biblinks
+                                 ) -> List:
+    def replace_biblink(element: BeautifulSoup) -> BeautifulSoup:
+        text = str(element)
+        for key, link in biblinks.items():
+            text = text.replace(f'<ref target="#{key}" type="bibr">',
+                                f'<ref target="{link}" type="bibr">')
+        element = BeautifulSoup(text, 'xml').find(element.name)
+        for empty_link_tag in element.find_all('ref', {'target': ''}):
+            empty_link_tag.unwrap()
+        return element
+
+    def split_texts_by_biblink(element: BeautifulSoup) -> List[str] | None:
+        if len(bibrefs := element.find_all('ref', {'type': 'bibr'})) == 0:
+            return
+        for bibref in bibrefs:
+            _change_tag(element.parent, bibref, 'bibref')
+        texts = re.split(r'<bibref |</bibref>', str(element))
+        texts = [re.sub(r'<p>|</p>', '', text) for text in texts]
+        return texts
+
+    replaced = []
+    for element in elements:
+        element = replace_biblink(element)
+        texts = split_texts_by_biblink(element)
+        if texts is None:
+            replaced.append(element)
+            continue
+        pattern = r'target="(.*?)" type="bibr">'
+        rich_text = []
+        for text in texts:
+            if (match := re.search(pattern, text)) is None:
+                rich_text.append({'text': {'content': text}})
+                continue
+            rich_text.append({'text': {'content': re.sub(pattern, '', text),
+                                       'link': {'url': match.group(1)}}})
+        replaced.append(_make_paragraph_block(rich_text))
+    return replaced
+
+
+def _elements2children_heading(elements) -> List:
+    children = []
+    for element in elements:
+        if isinstance(element, dict) or (element.name != 'head'):
+            children.append(element)
+            continue
+        children.append(_make_heading_block(element.get_text(), 1))
+    return children
+
+
+def _elements2children_paragraph(elements: List) -> List[dict]:
+    children = []
+    for element in elements:
+        if isinstance(element, dict):
+            children.append(element)
+            continue
+        rich_text = _make_simple_rich_text(element.get_text())
+        children.append(_make_paragraph_block(rich_text))
+    return children
+
+
+def pdf2children(i_path: str) -> str:
+    soup = BeautifulSoup(_extr_xmltext(i_path), 'xml')
+
+    biblinks = _extr_bib(soup)
+    fig_info = _extr_fig_info(soup)
+    tab_info = _extr_tab_info(soup)
+
+    elements = _extr_elements(soup)
+
+    _insert_fig(elements, fig_info)
+    _insert_tab(elements, tab_info)
+    elements = _elements2children_biblink(elements, biblinks)
+    elements = _elements2children_heading(elements)
+    children = _elements2children_paragraph(elements)
+    return children
 
 
 if __name__ == '__main__':
-    text = pdf2text('./test/samplepdfs/sample1.pdf')
-    with open('outputtest.md', 'w') as f:
-        f.write(text)
+    from .page import Page
+    children = pdf2children('./test/samplepdfs/sample2.pdf')
+    page = Page('d5c90701b59e4c68b4d638bcb9271c4b')
+    page.create_page('sample2', children)

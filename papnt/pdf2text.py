@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 from grobid_client.grobid_client import GrobidClient
 
@@ -70,7 +71,7 @@ def _make_heading_block(text: str, level: int) -> dict:
 
 
 def _extr_bib(soup: BeautifulSoup) -> dict:
-    def extr_doi(bib: BeautifulSoup) -> str:
+    def extr_doi(bib: Tag) -> str:
         doi = bib.find('idno', {'type': 'DOI'})
         if doi is None:
             return ''
@@ -80,7 +81,7 @@ def _extr_bib(soup: BeautifulSoup) -> dict:
     return {bib['xml:id']: extr_doi(bib) for bib in bibs}
 
 
-def _extr_elements(soup: BeautifulSoup):
+def _extr_elements(soup: Tag):
     bodyset = soup.find_all('div', {'xmlns': TEIURL})
     elements = []
     for bodies in bodyset:
@@ -89,7 +90,7 @@ def _extr_elements(soup: BeautifulSoup):
     return elements 
 
 
-def _extr_figtab_info(figtabs: BeautifulSoup) -> pd.DataFrame:
+def _extr_figtab_info(figtabs: Tag) -> pd.DataFrame:
     fig_info = []
     for figtab in figtabs:
         tag = figtab['xml:id']
@@ -111,6 +112,39 @@ def _extr_tab_info(soup: BeautifulSoup) -> pd.DataFrame:
     return _extr_figtab_info(tables)
 
 
+def _extr_table(soup: BeautifulSoup) -> dict:
+    def tabletag2block(table: Tag) -> str:
+        def tabletag2dataframe(table: Tag):
+            rows = table.find_all('row')
+            dataframe = []
+            for row in rows:
+                dataframe.append(
+                    [cell.get_text() for cell in row.find_all('cell')])
+            return pd.DataFrame(dataframe)
+        
+        def table2block(table: pd.DataFrame) -> dict:
+            def row2child(row: pd.Series) -> List[dict]:
+                cells = [_make_simple_rich_text(cell) for cell in row]
+                return {'type': 'table_row',
+                        'table_row': {'cells': cells}}
+            table = table.map(lambda x: '' if x is None else x)
+            children = [row2child(row) for _, row in table.iterrows()]
+            return {'type': 'table',
+                    'table': {'table_width': table.shape[1],
+                              'children': children}}
+
+        table = tabletag2dataframe(table)
+        return table2block(table)
+
+    tables = soup.find_all('figure', {'type': 'table'})
+    blocks = dict()
+    for table in tables:
+        table_id = table['xml:id']
+        table = table.find('table')
+        blocks[table_id] = tabletag2block(table)
+    return blocks
+
+
 def _find_ids_insert(elements: List[BeautifulSoup], info: pd.DataFrame
                      ) -> List[int]:
     ids_insert = []
@@ -123,6 +157,7 @@ def _find_ids_insert(elements: List[BeautifulSoup], info: pd.DataFrame
 
 def _insert_figtab(elements: List[BeautifulSoup], info: pd.DataFrame
                    ) -> List[dict]:
+    info = info.copy()
     info['ids_insert'] = _find_ids_insert(elements, info)
     info = info.sort_values('ids_insert', ascending=False)
     for _, (_, head, desc, idx_insert) in info.iterrows():
@@ -135,14 +170,18 @@ def _insert_fig(elements: List[BeautifulSoup], fig_info: pd.DataFrame
     return _insert_figtab(elements, fig_info)
 
 
-def _insert_tab(elements: List[BeautifulSoup], tab_info: pd.DataFrame
-                ) -> List[dict]:
-    return _insert_figtab(elements, tab_info)
+def _insert_tab(elements: List[BeautifulSoup], tab_info: pd.DataFrame,
+                tables: dict) -> List[dict]:
+    _insert_figtab(elements, tab_info)
+    info = tab_info.copy()
+    info['ids_insert'] = _find_ids_insert(elements, info)
+    info = info.sort_values('ids_insert', ascending=False)
+    for _, (tag, _, _, idx_insert) in info.iterrows():
+        elements.insert(idx_insert, tables[tag])
     
 
-def _elements2children_biblink(elements: List[BeautifulSoup], biblinks
-                                 ) -> List:
-    def replace_biblink(element: BeautifulSoup) -> BeautifulSoup:
+def _elements2children_biblink(elements: List, biblinks) -> List:
+    def replace_biblink(element: Tag) -> BeautifulSoup:
         text = str(element)
         for key, link in biblinks.items():
             text = text.replace(f'<ref target="#{key}" type="bibr">',
@@ -152,7 +191,7 @@ def _elements2children_biblink(elements: List[BeautifulSoup], biblinks
             empty_link_tag.unwrap()
         return element
 
-    def split_texts_by_biblink(element: BeautifulSoup) -> List[str] | None:
+    def split_texts_by_biblink(element: Tag) -> List[str] | None:
         if len(bibrefs := element.find_all('ref', {'type': 'bibr'})) == 0:
             return
         for bibref in bibrefs:
@@ -163,6 +202,9 @@ def _elements2children_biblink(elements: List[BeautifulSoup], biblinks
 
     replaced = []
     for element in elements:
+        if isinstance(element, dict):
+            replaced.append(element)
+            continue
         element = replace_biblink(element)
         texts = split_texts_by_biblink(element)
         if texts is None:
@@ -207,11 +249,12 @@ def pdf2children(i_path: str) -> str:
     biblinks = _extr_bib(soup)
     fig_info = _extr_fig_info(soup)
     tab_info = _extr_tab_info(soup)
+    tables = _extr_table(soup)
 
     elements = _extr_elements(soup)
 
     _insert_fig(elements, fig_info)
-    _insert_tab(elements, tab_info)
+    _insert_tab(elements, tab_info, tables)
     elements = _elements2children_biblink(elements, biblinks)
     elements = _elements2children_heading(elements)
     children = _elements2children_paragraph(elements)

@@ -13,7 +13,7 @@ with open('REQUIREMENTS') as requirements:
 setup(
     author="Issaku Kawashima",
     author_email='issakuss@gmail.com',
-    python_requires='>=3.10',
+    python_requires='>=3.10, <3.12',
     description="Academic paper management with Notion",
     entry_points={
         'console_scripts': [

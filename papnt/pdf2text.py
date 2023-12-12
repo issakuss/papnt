@@ -161,7 +161,7 @@ def _insert_figtab(elements: List[BeautifulSoup], info: pd.DataFrame
     info['ids_insert'] = _find_ids_insert(elements, info)
     info = info.sort_values('ids_insert', ascending=False)
     for _, (_, head, desc, idx_insert) in info.iterrows():
-        to_insert = BeautifulSoup(f'<p>**{head}** {desc}</p>', 'xml').find('p')
+        to_insert = BeautifulSoup(f'<p>{head} {desc}</p>', 'xml').find('p')
         elements.insert(idx_insert, to_insert)
 
 

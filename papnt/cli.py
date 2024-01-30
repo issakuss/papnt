@@ -8,7 +8,8 @@ from .mainfunc import (
     add_records_from_local_pdfpath,
     update_unchecked_records_from_doi,
     update_unchecked_records_from_uploadedpdf,
-    make_bibfile_from_records, make_abbrjson_from_bibpath)
+    make_bibfile_from_records, make_abbrjson_from_bibpath,
+    install_grobid)
 
 global config, database
 config = load_config(Path(__file__).parent / 'config.ini')
@@ -76,6 +77,13 @@ def makebib(target: str):
     make_abbrjson_from_bibpath(
         f'{config["misc"]["dir_save_bib"]}/{target}.bib',
         config['abbr'])
+
+
+@main.command()
+def grobid():
+    """Install (Download) Grobid"""
+    grobid_version = config['fulltext']['grobid_version']
+    install_grobid(grobid_version)
 
 
 if __name__ == '__main__':

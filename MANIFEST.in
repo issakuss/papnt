@@ -4,5 +4,6 @@ include REQUIREMENTS
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-exclude * external
 
 recursive-include docs

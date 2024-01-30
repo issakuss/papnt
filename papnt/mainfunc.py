@@ -9,6 +9,7 @@ from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
 from .notionprop import NotionPropMaker
 from .prop2entry import notionprop_to_entry
+from .install import download_grobid, unzip_grobid
 
 
 DEBUGMODE = False
@@ -86,6 +87,11 @@ def make_bibfile_from_records(database: Database, target: str,
 def make_abbrjson_from_bibpath(input_bibpath: str, special_abbr: dict):
     lister = AbbrLister(input_bibpath)
     lister.listup(special_abbr).save(input_bibpath.replace('.bib', '.json'))
+
+
+def install_grobid(version: str):
+    download_grobid(version)
+    unzip_grobid(version)
 
 
 if __name__ == '__main__':

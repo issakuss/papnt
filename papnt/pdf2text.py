@@ -32,7 +32,8 @@ def _extr_xmltext(i_path: str, port: str='8070') -> str:
         include_raw_affiliations=False,
         tei_coordinates=False,
         segment_sentences=False)
-    dir_grobid = (Path(__file__).parents[1] / 'external/grobid').resolve()
+    dir_grobid = (Path(__file__).parent / 'external/grobid').resolve()
+    print(dir_grobid)
     proc = subprocess.Popen(['./gradlew', 'run'], cwd=str(dir_grobid))
     while True:
         try:

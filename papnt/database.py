@@ -37,6 +37,9 @@ class Database:
                 self.db_results = records
                 return self
 
+    def fetch_newest_record(self):
+        return self.notion.databases.query(self.database_id, page_size=1)
+
     def update(self, page_id: str, prop: Dict):
         self.notion.pages.update(page_id=page_id, properties=prop)
 

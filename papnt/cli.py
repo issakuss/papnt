@@ -8,8 +8,9 @@ from .mainfunc import (
     add_records_from_local_pdfpath,
     update_unchecked_records_from_doi,
     update_unchecked_records_from_uploadedpdf,
-    make_bibfile_from_records, make_abbrjson_from_bibpath,
-    install_grobid)
+    make_bibfile_from_records, make_abbrjson_from_bibpath, install_grobid,
+    add_fulltext_from_pdf_on_notion_url)
+
 
 global config, database
 config = load_config(Path(__file__).parent / 'config.ini')
@@ -47,14 +48,16 @@ def paths(paths: str):
     SEP = ','
     paths = paths.split(SEP) if SEP in paths else [paths]
     for pdfpath in paths:
-        add_records_from_local_pdfpath(database, config['propnames'], pdfpath)
+        add_records_from_local_pdfpath(database, config['propnames'], pdfpath,
+                                       config['fulltext']['autorun'])
 
 
 @main.command()
 def doi():
     """Fill information in record(s) by DOI"""
     if _config_is_ok():
-        update_unchecked_records_from_doi(database, config['propnames'])
+        update_unchecked_records_from_doi(database, config['propnames'],
+                                          config['fulltext']['autorun'])
 
 
 @main.command()
@@ -62,7 +65,7 @@ def pdf():
     """Fill information in record(s) by uploaded PDF file"""
     if _config_is_ok():
         update_unchecked_records_from_uploadedpdf(
-            database, config['propnames'])
+            database, config['propnames'], config['fulltext']['autorun'])
 
 
 @main.command()
@@ -85,6 +88,15 @@ def grobid():
     grobid_version = config['fulltext']['grobid_version']
     install_grobid(grobid_version)
 
+
+@main.command()
+@click.argument('notionurl')
+def ft(notionurl: str):
+    """Extract fulltext by PDF file uploaded on entered page URL"""
+    if not _config_is_ok():
+        return
+    add_fulltext_from_pdf_on_notion_url(
+        database, config['propnames']['pdf'], notionurl)
 
 if __name__ == '__main__':
     _config_is_ok()

@@ -1,3 +1,4 @@
 /external
 *.pyc
 .DS_Store
+papnt.egg-info/

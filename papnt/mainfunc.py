@@ -13,16 +13,34 @@ from .prop2entry import notionprop_to_entry
 
 DEBUGMODE = False
 
-
+# This function is modified by 130n
 def add_records_from_local_pdfpath(
         database: Database, propnames: dict, input_pdfpath: str):
+    path = Path(input_pdfpath)
 
-    doi = pdf_to_doi(input_pdfpath)
-    if doi is None:
-        raise Exception('DOI was not extracted from PDF.')
-    prop = NotionPropMaker().from_doi(doi, propnames)
-    prop |= {'info': {'checkbox': True}}
-    database.create(prop)
+    # If path is a directory, get all PDFs
+    if path.is_dir():
+        pdf_paths = list(path.glob('**/*.pdf'))  # Get all PDFs under the specified directory
+    # If path is a file, add the PDF file to the list
+    elif path.is_file() and path.suffix == '.pdf':
+        pdf_paths = [path]
+    else:
+        raise ValueError(f"Invalid path provided: {input_pdfpath}. Please specify a directory or a PDF file.")
+
+    for pdf_path in pdf_paths:
+        try:
+            doi = pdf_to_doi(pdf_path)
+            if doi is None:
+                print(f"DOI could not be extracted from PDF: {pdf_path}. Skipping this file.")
+                continue  # Skip processing if DOI cannot be extracted
+
+            prop = NotionPropMaker().from_doi(doi, propnames)
+            prop |= {'info': {'checkbox': True}}
+            database.create(prop)
+            print(f"Record created for PDF: {pdf_path}")
+
+        except Exception as e:
+            print(f"Error processing {pdf_path}: {e}")
 
 
 def _update_record_from_doi(
@@ -57,7 +75,7 @@ def update_unchecked_records_from_uploadedpdf(
                  'files': {'is_not_empty': True}}]}
     for record in database.fetch_records(filter).db_results:
         fileurl = record['properties'][propnames['pdf']]
-        fileurl = fileurl['files'][0]['file']['url'] 
+        fileurl = fileurl['files'][0]['file']['url']
         pdffile = requests.get(fileurl).content
         with PATH_TEMP_PDF.open(mode='wb') as f:
             f.write(pdffile)
@@ -96,7 +114,7 @@ if __name__ == '__main__':
     database = Database(DatabaseInfo())
 
     add_records_from_local_pdfpath(
-        database, config['propnames'], 'test/samplepdfs/sample1.pdf') 
+        database, config['propnames'], 'test/samplepdfs/sample1.pdf')
     update_unchecked_records_from_doi(database, config['propnames'])
     update_unchecked_records_from_uploadedpdf(
         database, config['propnames'])

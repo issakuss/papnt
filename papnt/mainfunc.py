@@ -13,7 +13,7 @@ from .prop2entry import notionprop_to_entry
 
 DEBUGMODE = False
 
-# This function is modified by 130n
+# This function is modified
 def add_records_from_local_pdfpath(
         database: Database, propnames: dict, input_pdfpath: str):
     path = Path(input_pdfpath)

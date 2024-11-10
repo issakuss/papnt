@@ -17,6 +17,7 @@ DEBUGMODE = False
 def add_records_from_local_pdfpath(
         database: Database, propnames: dict, input_pdfpath: str):
     path = Path(input_pdfpath)
+    no_doi_files = []  # List for not to find DOI
 
     # If path is a directory, get all PDFs
     if path.is_dir():
@@ -27,11 +28,15 @@ def add_records_from_local_pdfpath(
     else:
         raise ValueError(f"Invalid path provided: {input_pdfpath}. Please specify a directory or a PDF file.")
 
+    skipped_no_doi = []  # List for not to extract DOI
+    skipped_failed_record = []  # List for not to record to notion
+
     for pdf_path in pdf_paths:
         try:
             doi = pdf_to_doi(pdf_path)
             if doi is None:
                 print(f"DOI could not be extracted from PDF: {pdf_path}. Skipping this file.")
+                skipped_no_doi.append(pdf_path.name)
                 continue  # Skip processing if DOI cannot be extracted
 
             prop = NotionPropMaker().from_doi(doi, propnames)
@@ -41,6 +46,20 @@ def add_records_from_local_pdfpath(
 
         except Exception as e:
             print(f"Error processing {pdf_path}: {e}")
+            skipped_failed_record.append((pdf_path.name, doi))
+
+    # Output TXT about not found PDFs
+    with open("skipping files list.txt", "w") as f:
+
+        f.write("# PDF can not extracted DOI\n")
+        for filename in skipped_no_doi:
+            f.write(f"{filename}\n")
+
+        f.write("\n# PDF can not recorded\n")
+        for filename, doi in skipped_failed_record:
+            f.write(f"{filename}\n")
+            if doi:
+                f.write(f"https://doi.org/{doi}\n")
 
 
 def _update_record_from_doi(

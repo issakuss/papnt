@@ -17,7 +17,6 @@ DEBUGMODE = False
 def add_records_from_local_pdfpath(
         database: Database, propnames: dict, input_pdfpath: str):
     path = Path(input_pdfpath)
-    no_doi_files = []  # List for not to find DOI
 
     # If path is a directory, get all PDFs
     if path.is_dir():

@@ -70,6 +70,9 @@ def update_unchecked_records_from_uploadedpdf(
 
 def make_bibfile_from_records(database: Database, target: str,
                               propnames: dict, dir_save_bib: str):
+    if dir_save_bib == '':
+        raise RuntimeError('Edit "dir_save_bib" key in config.ini')
+
     propname_to_bibname = {val: key for key, val in propnames.items()}
     filter = {'property': propnames['output_target'],
               'multi_select': {'contains': target}}

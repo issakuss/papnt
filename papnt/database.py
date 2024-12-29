@@ -12,6 +12,9 @@ class DatabaseInfo:
         config = load_config(path_config)
         self.tokenkey = config['database']['tokenkey']
         self.database_id = config['database']['database_id']
+        if self.tokenkey and self.database_id:
+            return
+        raise RuntimeError('Edit "tokenkey" and "database_id" on config.ini')
 
 
 class Database:

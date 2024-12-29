@@ -4,6 +4,7 @@ from pathlib import Path
 from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
 
+from .misc import FailLogger
 from .database import Database
 from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
@@ -15,14 +16,33 @@ DEBUGMODE = False
 
 
 def add_records_from_local_pdfpath(
-        database: Database, propnames: dict, input_pdfpath: str):
+        database: Database, propnames: dict, input_pdfpath: str | Path):
 
-    doi = pdf_to_doi(input_pdfpath)
-    if doi is None:
-        raise Exception('DOI was not extracted from PDF.')
-    prop = NotionPropMaker().from_doi(doi, propnames)
-    prop |= {'info': {'checkbox': True}}
-    database.create(prop)
+    input_pdfpath = Path(input_pdfpath)
+    if input_pdfpath.is_dir():
+        pdf_paths = input_pdfpath.glob('**/*.pdf')
+    elif input_pdfpath.is_file() and input_pdfpath.suffix == '.pdf':
+        pdf_paths = [input_pdfpath]
+    else:
+        raise ValueError(f'Invalid path provided: {input_pdfpath}. '
+                          'Please specify a directory or a PDF file.')
+
+    logger = FailLogger()
+    for pdf_path in pdf_paths:
+        logger.set_path(pdf_path)
+        doi = pdf_to_doi(pdf_path) or logger.log_no_doi_extracted()
+        if doi is None:
+            continue
+        try:
+            prop = NotionPropMaker().from_doi(doi, propnames)
+        except Exception as e:
+            logger.log_no_doi_info(doi)
+            continue
+        prop |= {'info': {'checkbox': True}}
+        database.create(prop)
+        print(f'Recorded: {pdf_path}')
+
+    logger.export_to_text()
 
 
 def _update_record_from_doi(
@@ -57,7 +77,7 @@ def update_unchecked_records_from_uploadedpdf(
                  'files': {'is_not_empty': True}}]}
     for record in database.fetch_records(filter).db_results:
         fileurl = record['properties'][propnames['pdf']]
-        fileurl = fileurl['files'][0]['file']['url'] 
+        fileurl = fileurl['files'][0]['file']['url']
         pdffile = requests.get(fileurl).content
         with PATH_TEMP_PDF.open(mode='wb') as f:
             f.write(pdffile)
@@ -96,7 +116,7 @@ if __name__ == '__main__':
     database = Database(DatabaseInfo())
 
     add_records_from_local_pdfpath(
-        database, config['propnames'], 'test/samplepdfs/sample1.pdf') 
+        database, config['propnames'], 'test/samplepdfs/sample1.pdf')
     update_unchecked_records_from_doi(database, config['propnames'])
     update_unchecked_records_from_uploadedpdf(
         database, config['propnames'])

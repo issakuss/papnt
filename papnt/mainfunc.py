@@ -20,7 +20,7 @@ def add_records_from_local_pdfpath(
 
     input_pdfpath = Path(input_pdfpath)
     if input_pdfpath.is_dir():
-        pdf_paths = input_pdfpath.glob('**/*.pdf')
+        pdf_paths = list(input_pdfpath.glob('**/*.pdf'))
     elif input_pdfpath.is_file() and input_pdfpath.suffix == '.pdf':
         pdf_paths = [input_pdfpath]
     else:
@@ -42,7 +42,8 @@ def add_records_from_local_pdfpath(
         database.create(prop)
         print(f'Recorded: {pdf_path}')
 
-    logger.export_to_text()
+    shallowest_pdf = min(pdf_paths, key=lambda p: len(p.parts))
+    logger.export_to_text(shallowest_pdf.parent)
 
 
 def _update_record_from_doi(

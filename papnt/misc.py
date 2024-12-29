@@ -35,15 +35,18 @@ class FailLogger:
         print('No information on found DOI: {self.pdf_path.name} ({doi})')
         self.no_doi_info.append((self.pdf_path.name, doi))
 
-    def export_to_text(self):
-        with open('skipped-files.txt', 'w') as f:
+    def export_to_text(self, path_log_text_output: str | Path):
+        if not (self.no_doi_extracted or self.no_doi_info):
+            return
+        with (Path(path_log_text_output) / 'skipped-files.txt').open('w') as f:
+            if self.no_doi_extracted:
+                f.write('# DOI cannot be extracted:\n')
+                for filename in self.no_doi_extracted:
+                    f.write(f"{filename}\n")
 
-            f.write('# DOI cannot be extracted:\n')
-            for filename in self.no_doi_extracted:
-                f.write(f"{filename}\n")
-
-            f.write('\n# No information on found DOI\n')
-            for filename, doi in self.no_doi_info:
-                f.write(f"{filename}\n")
-                if doi:
-                    f.write(f"https://doi.org/{doi}\n")
+            if self.no_doi_info:
+                f.write('\n# No information on found DOI\n')
+                for filename, doi in self.no_doi_info:
+                    f.write(f"{filename}: ")
+                    if doi:
+                        f.write(f"https://doi.org/{doi}\n")

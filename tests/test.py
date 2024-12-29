@@ -17,11 +17,13 @@ database = Database(DatabaseInfo())
 
 class Test(unittest.TestCase):
     def paths(self):
-        I_PATH_TESTPDF = Path('tests/testdata')
-        for i_path in I_PATH_TESTPDF.glob('*.pdf'):
+        I_DIR_TESTPDF = Path('tests/testdata')
+        for i_path in I_DIR_TESTPDF.glob('*.pdf'):
             add_records_from_local_pdfpath(
                 database, config['propnames'], i_path)
-    
+        add_records_from_local_pdfpath(
+            database, config['propnames'], I_DIR_TESTPDF)
+
     def doi(self):
         for doi in open('tests/testdata/doi-list-to-test', 'r').readlines():
             database.create({'DOI':

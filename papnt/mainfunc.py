@@ -1,4 +1,5 @@
 import requests
+from itertools import product
 from pathlib import Path
 
 from bibtexparser.bwriter import BibTexWriter
@@ -76,6 +77,10 @@ def make_bibfile_from_records(database: Database, target: str,
     entries = [notionprop_to_entry(record['properties'], propname_to_bibname)
                for record in database.fetch_records(filter).db_results]
 
+    to_replace = {'&': '&',
+                  '&amp;': '&'}
+    for entry, args in product(entries, to_replace.items()):
+        entry['journal'] = entry['journal'].replace(*args)
     bib_db = BibDatabase()
     bib_db.entries = entries
     writer = BibTexWriter()

@@ -79,4 +79,8 @@ def notionprop_to_entry(notionprop: Dict, propname_to_bibname: Dict
         publisher = _extr_propvalue(props['publisher'], 'select'),
         howpublished = _extr_propvalue(props['howpublished'], 'rich_text'),
     )
+    # to_replace = {'&': '\\&',
+    #               '&amp;': '\\&'}
+    # for args in to_replace.items():
+    #     entry['journal'] = entry['journal'].replace(*args)
     return {key: val for key, val in entry.items() if val is not None}

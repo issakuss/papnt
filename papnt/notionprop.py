@@ -57,6 +57,9 @@ def to_notionprop(content: Optional[Any],
 
 
 class NotionPropMaker:
+    def __init__(self):
+        self.notes = []
+
     def from_doi(self, doi: str, propnames: dict) -> dict:
         doi_style_info = self._fetch_info_from_doi(doi)
         return self._make_properties(doi_style_info, propnames)
@@ -144,7 +147,8 @@ class NotionPropMaker:
         return {propnames.get(key) or key: value for key, value
                 in properties.items() if value is not None}
 
-    def _make_author_list(self, authors: dict) -> List[str]:
+    def _make_author_list(self, authors: List[dict]) -> List[str]:
+        MAX_N_NOTION_MULTISELECT = 100
         authors_ = []
         for author in authors:
             given = author.get('given')
@@ -157,4 +161,9 @@ class NotionPropMaker:
                 authors_.append(name)
             else:
                 raise RuntimeError('Valid author name was not found')
+        if len(authors_) > MAX_N_NOTION_MULTISELECT:
+            extra_authors = authors_[99:-1]
+            self.notes.append('From the 100th to the second to last author'
+                              f': {"; ".join(extra_authors)}')
+            authors_ = authors_[:MAX_N_NOTION_MULTISELECT - 1] + [authors_[-1]]
         return authors_

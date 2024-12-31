@@ -32,7 +32,10 @@ def _update_record_from_doi(
     prop = prop_maker.from_doi(doi, propnames)
     prop |= {'info': {'checkbox': True}}
     try:
-        database.update(id_record, prop)
+        database.update_properties(id_record, prop)
+        for note in prop_maker.notes:
+            database.add_children(id_record, note, 'paragraph')
+
     except Exception as e:
         print(str(e))
         name = prop['Name']['title'][0]['text']['content']

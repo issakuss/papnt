@@ -79,8 +79,8 @@ def make_bibfile_from_records(database: Database, target: str,
     bib_db = BibDatabase()
     bib_db.entries = entries
     writer = BibTexWriter()
-    with open(f'{dir_save_bib}/{target}.bib', 'w') as bibfile:
-        bibfile.write(writer.write(bib_db))
+    output_path = f'{dir_save_bib}/{target}.bib'
+    open(output_path, 'w', encoding='UTF-8').write(writer.write(bib_db))
 
 
 def make_abbrjson_from_bibpath(input_bibpath: str, special_abbr: dict):

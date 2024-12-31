@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Literal, Optional, Dict, List
 from pathlib import Path
 
 from notion_client import Client
@@ -40,9 +40,34 @@ class Database:
                 self.db_results = records
                 return self
 
-    def update(self, page_id: str, prop: Dict):
+    def update_properties(self, page_id: str, prop: Dict):
         self.notion.pages.update(page_id=page_id, properties=prop)
 
     def create(self, prop: Dict):
         self.notion.pages.create(
             parent={'database_id': self.database_id}, properties=prop)
+
+    def add_children(self, page_id: str, contents: str,
+                     blocktype: Literal['paragraph']):
+        def make_text(text: str):
+            return {'rich_text': [{'type': 'text', 'text': {'content': text}}]}
+
+        def make_block(contents: str, blocktype: Literal['paragraph']):
+
+            block = {'object': 'block'}
+            match blocktype:
+                case 'paragraph':
+                    block |= {'type': blocktype, 'paragraph': make_text(contents)}
+                    return block
+                case _:
+                    raise RuntimeError(f'{blocktype} type block is not supported.')
+
+        self.notion.blocks.children.append(
+            block_id=page_id, children=[make_block(contents, blocktype)])
+
+
+if __name__ == '__main__':
+    PAGEID = '16dbcba025d580359e95c5c37fd2d25c'
+    database = Database(DatabaseInfo())
+    database.add_children(
+        page_id=PAGEID, contents='test script', blocktype='paragraph')

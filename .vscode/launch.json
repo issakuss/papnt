@@ -2,6 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "database",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "papnt.database"
+        },
+        {
             "name": "test",
             "type": "debugpy",
             "request": "launch",

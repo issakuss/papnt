@@ -148,9 +148,13 @@ class NotionPropMaker:
         authors_ = []
         for author in authors:
             given = author.get('given')
-            if given is None:
-                authors_.append(author['family'].replace(' ', '_'))
-                break
-            authors_.append(given + ' ' + author['family'])
+            family = author.get('family')
+            if given and family:
+                authors_.append(given + ' ' + family)
+            elif (given is None) and family:
+                authors_.append(family.replace(' ', '_'))
+            elif name:=author.get('name'):
+                authors_.append(name)
+            else:
+                raise RuntimeError('Valid author name was not found')
         return authors_
-

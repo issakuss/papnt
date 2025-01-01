@@ -80,4 +80,3 @@ def makebib(target: str):
 
 if __name__ == '__main__':
     _config_is_ok()
-    ...

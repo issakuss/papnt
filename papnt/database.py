@@ -41,24 +41,36 @@ class Database:
         self.notion.pages.update(page_id=page_id, properties=prop)
 
     def create(self, prop: Dict):
-        self.notion.pages.create(
+        return self.notion.pages.create(
             parent={'database_id': self.database_id}, properties=prop)
 
-    def add_children(self, page_id: str, contents: str,
-                     blocktype: Literal['paragraph']):
+    def add_children(self, page_id: str, contents: str | List | None,
+                     blocktype: Literal['paragraph'], title: str='title'):
         def make_text(text: str):
             return {'rich_text': [{'type': 'text', 'text': {'content': text}}]}
 
-        def make_block(contents: str, blocktype: Literal['paragraph']):
-
+        def make_block(contents: str,
+                       blocktype: Literal['paragraph', 'toggle']):
             block = {'object': 'block'}
             match blocktype:
                 case 'paragraph':
-                    block |= {'type': blocktype, 'paragraph': make_text(contents)}
+                    if isinstance(contents, str):
+                        contents = make_text(contents)
+                    block |= {'type': blocktype,
+                              'paragraph': contents}
                     return block
-                case _:
-                    raise RuntimeError(f'{blocktype} type block is not supported.')
+                case 'toggle':
+                    block |= {'type': blocktype,
+                              'toggle': make_text(title) |
+                                        {'children': contents}}
+                    return block
 
+                case _:
+                    raise RuntimeError(
+                        f'{blocktype} type block is not supported.')
+
+        if contents is None:
+            return
         self.notion.blocks.children.append(
             block_id=page_id, children=[make_block(contents, blocktype)])
 

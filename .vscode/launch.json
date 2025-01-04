@@ -2,6 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "pdf2text",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "papnt.pdf2text"
+        },
+        {
             "name": "database",
             "type": "debugpy",
             "request": "launch",

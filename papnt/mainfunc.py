@@ -4,15 +4,18 @@ from pathlib import Path
 from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
 
-from .misc import FailLogger
+from .misc import load_config, FailLogger
 from .database import Database
 from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
-from .notionprop import NotionPropMaker
+from .notionprop import NotionPropMaker, to_notionprop
 from .prop2entry import notionprop_to_entry
+from .pdf2text import PDF2ChildrenConverter
 
 
 DEBUGMODE = False
+converter = PDF2ChildrenConverter(
+    load_config('papnt/config.ini')['grobid']['server'])
 
 
 def add_records_from_local_pdfpath(
@@ -34,12 +37,15 @@ def add_records_from_local_pdfpath(
         if doi is None:
             continue
         try:
-            prop = NotionPropMaker().from_doi(doi, propnames)
+            prop = NotionPropMaker().from_doi(doi, propnames) | \
+                   {'info': {'checkbox': True}}
         except Exception as e:
             logger.log_no_doi_info(doi)
-            continue
-        prop |= {'info': {'checkbox': True}}
-        database.create(prop)
+            prop = to_notionprop(pdf_path.name, 'title')
+        created_page_id = database.create(prop)['id']
+        children = converter.convert(pdf_path)
+        database.add_children(created_page_id, children, blocktype='toggle',
+                              title='Text extracted by GROBID')
         print(f'Recorded: {pdf_path}')
 
     shallowest_pdf = min(pdf_paths, key=lambda p: len(p.parts))
@@ -86,6 +92,9 @@ def update_unchecked_records_from_uploadedpdf(
         with PATH_TEMP_PDF.open(mode='wb') as f:
             f.write(pdffile)
         doi = pdf_to_doi(PATH_TEMP_PDF)
+        children = converter.convert(PATH_TEMP_PDF)
+        database.add_children(record['id'], children, blocktype='toggle',
+                              title='Text extracted by GROBID')
         PATH_TEMP_PDF.unlink()
         if doi is None:
             continue

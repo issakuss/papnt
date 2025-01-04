@@ -32,7 +32,7 @@ class FailLogger:
         self.no_doi_extracted.append(self.pdf_path.name)
 
     def log_no_doi_info(self, doi: str):
-        print('No information on found DOI: {self.pdf_path.name} ({doi})')
+        print(f'No information on found DOI: {self.pdf_path.name} ({doi})')
         self.no_doi_info.append((self.pdf_path.name, doi))
 
     def export_to_text(self, path_log_text_output: str | Path):

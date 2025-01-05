@@ -15,7 +15,7 @@ from .pdf2text import PDF2ChildrenConverter
 
 DEBUGMODE = False
 converter = PDF2ChildrenConverter(
-    load_config('papnt/config.ini')['grobid']['server'])
+    load_config(Path(__file__).parent / 'config.ini')['grobid']['server'])
 
 
 def add_records_from_local_pdfpath(

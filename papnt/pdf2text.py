@@ -300,9 +300,7 @@ class PDF2ChildrenConverter:
             try:
                 self.client = GrobidClient(url)
             except:
-                print('Failed to connect to GORBID, retry...')
-                sleep(1.)
-                continue
+                raise ConnectionError('Failed to connect to GORBID')
             break
 
     def convert(self, i_path_pdf: str | Path):

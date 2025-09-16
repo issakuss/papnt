@@ -57,7 +57,7 @@ def _extr_propvalue(prop: Dict, proptype: str) -> str:
         case 'multi_select':
             return prop['multi_select']
         case _:
-            raise ValueError
+            raise RuntimeError
 
 
 def notionprop_to_entry(notionprop: Dict, propname_to_bibname: Dict

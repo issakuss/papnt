@@ -27,7 +27,7 @@ def add_records_from_local_pdfpath(
     elif input_pdfpath.is_file() and input_pdfpath.suffix == '.pdf':
         pdf_paths = [input_pdfpath]
     else:
-        raise ValueError(f'Invalid path provided: {input_pdfpath}. '
+        raise RuntimeError(f'Invalid path provided: {input_pdfpath}. '
                           'Please specify a directory or a PDF file.')
 
     logger = FailLogger()
@@ -66,7 +66,7 @@ def _update_record_from_doi(
     except Exception as e:
         print(str(e))
         name = prop['Name']['title'][0]['text']['content']
-        raise ValueError(f'Error while updating record: {name}')
+        raise RuntimeError(f'Error while updating record: {name}')
 
 
 def update_unchecked_records_from_doi(database: Database, propnames: dict):

@@ -42,7 +42,7 @@ class AbbrLister:
 
     def save(self, save_path: str):
         if not hasattr(self, 'abbrs'):
-            raise ValueError('Use listup() first.')
+            raise RuntimeError('Use listup() first.')
 
         with open(save_path, 'w') as f:
             json.dump(

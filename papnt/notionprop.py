@@ -54,7 +54,7 @@ def to_notionprop(content: Optional[Any],
             date = '-'.join([str(content_) for content_ in content[0]])
             return {'date': {'start': date}}
         case _:
-            raise ValueError('Invalid mode')
+            raise RuntimeError('Invalid mode')
 
 
 class NotionPropMaker:

@@ -8,7 +8,7 @@ from .misc import load_config, FailLogger
 from .database import Database
 from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
-from .notionprop import NotionPropMaker, to_notionprop
+from .notionprop import NotionPropMaker, to_notionprop, add_fileupload_prop
 from .prop2entry import notionprop_to_entry
 from .pdf2text import PDF2ChildrenConverter
 
@@ -41,7 +41,9 @@ def add_records_from_local_pdfpath(
                    {'info': {'checkbox': True}}
         except Exception as e:
             logger.log_no_doi_info(doi)
-            prop = to_notionprop(pdf_path.name, 'title')
+            prop = {'Name': to_notionprop(pdf_path.name, 'title')}
+        prop = add_fileupload_prop(
+            prop, pdf_path, database.notion, propnames['pdf'])
         created_page_id = database.create(prop)['id']
         children = converter.convert(pdf_path)
         database.add_children(created_page_id, children, blocktype='toggle',
@@ -56,17 +58,16 @@ def _update_record_from_doi(
         database: Database, doi: str, id_record: str, propnames: dict):
 
     prop_maker = NotionPropMaker()
-    prop = prop_maker.from_doi(doi, propnames)
-    prop |= {'info': {'checkbox': True}}
     try:
+        prop = prop_maker.from_doi(doi, propnames)
+        prop |= {'info': {'checkbox': True}}
         database.update_properties(id_record, prop)
         for note in prop_maker.notes:
             database.add_children(id_record, note, 'paragraph')
 
     except Exception as e:
         print(str(e))
-        name = prop['Name']['title'][0]['text']['content']
-        raise RuntimeError(f'Error while updating record: {name}')
+        raise RuntimeError(f'Error while updating record: {doi}')
 
 
 def update_unchecked_records_from_doi(database: Database, propnames: dict):
@@ -98,7 +99,11 @@ def update_unchecked_records_from_uploadedpdf(
         PATH_TEMP_PDF.unlink()
         if doi is None:
             continue
-        _update_record_from_doi(database, doi, record['id'], propnames)
+        try:
+            _update_record_from_doi(database, doi, record['id'], propnames)
+        except RuntimeError as e:
+            print(e)
+            continue
 
 
 def make_bibfile_from_records(database: Database, target: str,

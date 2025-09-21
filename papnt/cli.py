@@ -40,7 +40,7 @@ def main(ctx):
 @main.command()
 @click.argument('paths')
 def paths(paths: str):
-    """Add record(s) to database by local path to PDF file"""
+    """Add record(s) to database by local path to PDF file, and upload PDF"""
     if not _config_is_ok():
         return
     SEP = ','

@@ -1,11 +1,42 @@
 from typing import Optional, Any, Literal, List
+from pathlib import Path
 import string
 from unidecode import unidecode
 
+from notion_client import Client
 from crossref.restful import Works
 import arxiv
 
 from .const import SKIPWORDS, CROSSREF_TO_BIB
+
+
+def add_fileupload_prop(prop: dict, pdf_path: str | Path, notion: Client,
+                        propname_pdf: Optional[str]=None) -> dict:
+    def filesize_is_ng(pdf_path: str | Path, max_size_mb: float = 20.) -> bool:
+        return pdf_path.stat().st_size > max_size_mb * 1024 * 1024
+
+    def upload_file(pdf_path: str | Path, notion: Client) -> str:
+        filename = pdf_path.name
+        res = notion.file_uploads.create(mode='single_part', filename=filename)
+        upload_id = res['id']
+
+        with open(pdf_path, 'rb') as f:
+            res = notion.file_uploads.send(file_upload_id=upload_id, file=f)
+        if res['status'] != 'uploaded':
+            raise RuntimeError(f'File upload failed: {pdf_path}')
+
+        return upload_id
+
+    if filesize_is_ng(pdf_path):
+        raise ValueError(f'File size is too large: {pdf_path}')
+
+    upload_id = upload_file(pdf_path, notion)
+
+    prop[propname_pdf or 'pdf'] = {
+        'type': 'files',
+        'files': [{'type': 'file_upload',
+                   'file_upload': {'id': upload_id}}]}
+    return prop
 
 
 def to_notionprop(content: Optional[Any],

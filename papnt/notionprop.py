@@ -78,7 +78,7 @@ class NotionPropMaker:
             authors.append({
                 'given': ' '.join(author.name.split(' ')[:-1]),
                 'family': author.name.split(' ')[-1]})
-        
+
         date = paper.published
         return {
             'author': authors,

@@ -132,11 +132,5 @@ if __name__ == '__main__':
     database = Database(DatabaseInfo())
 
     add_records_from_local_pdfpath(
-        database, config['propnames'], 'test/samplepdfs/sample1.pdf')
-    update_unchecked_records_from_doi(database, config['propnames'])
-    update_unchecked_records_from_uploadedpdf(
-        database, config['propnames'])
-    make_bibfile_from_records(
-        database, 'test', config['propnames'], config['misc']['dir_save_bib'])
-    make_abbrjson_from_bibpath(
-        config['misc']['dir_save_bib'] + 'test.bib', config['abbr'])
+        database, config['propnames'], 'tests/testdata/fail-to-record/x-plosone.pdf')
+        # database, config['propnames'], 'tests/testdata/elsevier.pdf')

@@ -48,4 +48,5 @@ if __name__ == '__main__':
     Test().paths()
     Test().doi()
     Test().pdf()
+    input('Set "test" in "Cite in" of any record manually, and press key to continue...')
     Test().makebib()

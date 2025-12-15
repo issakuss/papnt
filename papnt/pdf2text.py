@@ -99,13 +99,14 @@ def _extr_elements(soup: Tag):
             elements.append(body)
     return elements
 
-
 def _extr_figtab_info(figtabs: Tag) -> FigTabInfo:
     fig_info = []
     for figtab in figtabs:
         tag = figtab['xml:id']
-        head = figtab.find('head').get_text()
-        desc = figtab.find('figDesc').get_text()
+        head_elem = figtab.find('head')
+        head = head_elem.get_text() if head_elem else ""
+        desc_elem = figtab.find('figDesc')
+        desc = desc_elem.get_text() if desc_elem else ""
         if desc.startswith(head):
             desc = desc[len(head):]
         fig_info.append([tag, head, desc])

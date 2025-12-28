@@ -1,82 +1,94 @@
 from pathlib import Path
-
 import click
+from click.core import Context
 
-from .misc import load_config
-from .database import Database, DatabaseInfo
+from .misc import load_config, save_config, IN_PATH_CONFIG
+from .database import NotionDatabase
 from .mainfunc import (
     add_records_from_local_pdfpath,
     update_unchecked_records_from_doi,
     update_unchecked_records_from_uploadedpdf,
     make_bibfile_from_records, make_abbrjson_from_bibpath)
 
-global config, database
-config = load_config(Path(__file__).parent / 'config.ini')
-database = Database(DatabaseInfo())
 
-
-def _config_is_ok():
-    tokenkey_is_empty = len(config['database']['tokenkey']) == 0
-    database_id_is_empty = len(config['database']['database_id']) == 0
-    if tokenkey_is_empty or database_id_is_empty:
-        click.echo('Open config.ini and edit database information: '
-                   f'{Path(__file__).parent / "config.ini"}', err=True)
-        return False
-    else:
-        return True
-
-
-# @click.group(context_settings=dict(help_option_names=['-h', '--help']))
 @click.group(invoke_without_command=True)
 @click.pass_context
-def main(ctx):
+def main(ctx: Context):
+    ctx.obj = dict(
+        config=load_config(),
+    )
+    click.echo('Wellcome to Papnt!')
+    click.echo(f'Your config file is in: {IN_PATH_CONFIG}')
     if ctx.invoked_subcommand is None:
         click.echo('try `papnt --help` for help')
-        if _config_is_ok():
-            click.echo('Your config file is in: '
-                       f'{Path(__file__).parent / "config.ini"}')
-
 
 @main.command()
-@click.argument('paths')
-def paths(paths: str):
-    """Add record(s) to database by local path to PDF file, and upload PDF"""
-    if not _config_is_ok():
+@click.argument(
+    'paths', nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def paths(ctx: Context, paths: tuple[Path, ...]):
+    """Add record(s) to database by local path to PDF file"""
+    if not paths:
+        click.echo('Indicate local path(s) of PDF(s)')
         return
-    SEP = ','
-    paths = paths.split(SEP) if SEP in paths else [paths]
+
+    db = _fetch_database(ctx)
+    propnames = ctx.obj['config']['propnames']
     for pdfpath in paths:
-        add_records_from_local_pdfpath(database, config['propnames'], pdfpath)
+        add_records_from_local_pdfpath(db, propnames, pdfpath)
 
 
 @main.command()
-def doi():
+@click.pass_context
+def doi(ctx: Context):
     """Fill information in record(s) by DOI"""
-    if _config_is_ok():
-        update_unchecked_records_from_doi(database, config['propnames'])
+    update_unchecked_records_from_doi(
+        _fetch_database(ctx), ctx.obj['config']['propnames'])
 
 
 @main.command()
-def pdf():
+@click.pass_context
+def pdf(ctx: Context):
     """Fill information in record(s) by uploaded PDF file"""
-    if _config_is_ok():
-        update_unchecked_records_from_uploadedpdf(
-            database, config['propnames'])
+    update_unchecked_records_from_uploadedpdf(
+        _fetch_database(ctx), ctx.obj['config']['propnames'])
 
 
 @main.command()
 @click.argument('target')
-def makebib(target: str):
+@click.pass_context
+def makebib(ctx: Context, target: str):
     """Make BIB file including reference information from database"""
-    if not _config_is_ok():
-        return
-    make_bibfile_from_records(
-        database, target, config['propnames'],
-        config['misc']['dir_save_bib'])
-    make_abbrjson_from_bibpath(
-        f'{config["misc"]["dir_save_bib"]}/{target}.bib',
-        config['abbr'])
+    config = ctx.obj['config']
 
+    save_dir = _complete_config(ctx, 'misc', 'save_bibfile_to')
+    save_path_bib = Path(save_dir) / f'{target}.bib'
+    make_bibfile_from_records(_fetch_database(ctx), target,
+                              config['propnames'], save_path_bib)
+    make_abbrjson_from_bibpath(save_path_bib, config['abbr'])
+
+# -- vvv Helper vvv ---
+
+def _fetch_database(ctx: Context) -> NotionDatabase:
+    tokenkey = _complete_config(ctx, 'database', 'tokenkey')
+    database_id = _complete_config(ctx, 'database', 'database_id')
+    return NotionDatabase(tokenkey, database_id)
+
+
+def _complete_config(ctx: Context, section: str, key: str) -> str:
+    """Prompt user to input missing config value and update file."""
+    EXPLAIN_MAP = {
+        'tokenkey': 'Notion integration token key',
+        'database_id': 'Notion database ID',
+        'save_bibfile_to': 'Directory to save BIB file',
+    }
+
+    config = ctx.obj['config']
+    if not (val:=config[section].get(key)):
+        val = click.prompt(f'Please enter {EXPLAIN_MAP[key]}')
+        config[section][key] = val
+        save_config(config)
+    return val
 
 if __name__ == '__main__':
-    _config_is_ok()
+    main()  # type: ignore

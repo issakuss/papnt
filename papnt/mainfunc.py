@@ -5,7 +5,7 @@ from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
 
 from .misc import load_config, FailLogger
-from .database import Database
+from .database import NotionDatabase
 from .abbrlister import AbbrLister
 from .pdf2doi import pdf_to_doi
 from .notionprop import NotionPropMaker, to_notionprop, add_fileupload_prop
@@ -15,11 +15,11 @@ from .pdf2text import PDF2ChildrenConverter
 
 DEBUGMODE = False
 converter = PDF2ChildrenConverter(
-    load_config(Path(__file__).parent / 'config.ini')['grobid']['server'])
+    load_config()['grobid']['server'])
 
 
 def add_records_from_local_pdfpath(
-        database: Database, propnames: dict, input_pdfpath: str | Path):
+        database: NotionDatabase, propnames: dict, input_pdfpath: str | Path):
 
     input_pdfpath = Path(input_pdfpath)
     if input_pdfpath.is_dir():
@@ -55,7 +55,7 @@ def add_records_from_local_pdfpath(
 
 
 def _update_record_from_doi(
-        database: Database, doi: str, id_record: str, propnames: dict):
+        database: NotionDatabase, doi: str, id_record: str, propnames: dict):
 
     prop_maker = NotionPropMaker()
     try:
@@ -70,7 +70,7 @@ def _update_record_from_doi(
         raise RuntimeError(f'Error while updating record: {doi}')
 
 
-def update_unchecked_records_from_doi(database: Database, propnames: dict):
+def update_unchecked_records_from_doi(database: NotionDatabase, propnames: dict):
     filter = {
         'and': [{'property': 'info', 'checkbox': {'equals': False}},
                 {'property': 'DOI', 'rich_text': {'is_not_empty': True}}]}
@@ -80,7 +80,7 @@ def update_unchecked_records_from_doi(database: Database, propnames: dict):
 
 
 def update_unchecked_records_from_uploadedpdf(
-        database: Database, propnames: dict):
+        database: NotionDatabase, propnames: dict):
     PATH_TEMP_PDF = Path('you-can-delete-this-file.pdf')
     filter = {
         'and': [{'property': 'info', 'checkbox': {'equals': False}},
@@ -106,11 +106,8 @@ def update_unchecked_records_from_uploadedpdf(
             continue
 
 
-def make_bibfile_from_records(database: Database, target: str,
-                              propnames: dict, dir_save_bib: str):
-    if dir_save_bib == '':
-        raise RuntimeError('Edit "dir_save_bib" key in config.ini')
-
+def make_bibfile_from_records(database: NotionDatabase, target: str,
+                              propnames: dict, out_path_bib: str):
     propname_to_bibname = {val: key for key, val in propnames.items()}
     filter = {'property': propnames['output_target'],
               'multi_select': {'contains': target}}
@@ -120,13 +117,12 @@ def make_bibfile_from_records(database: Database, target: str,
     bib_db = BibDatabase()
     bib_db.entries = entries
     writer = BibTexWriter()
-    output_path = f'{dir_save_bib}/{target}.bib'
-    open(output_path, 'w', encoding='UTF-8').write(writer.write(bib_db))
+    open(out_path_bib, 'w', encoding='UTF-8').write(writer.write(bib_db))
 
 
-def make_abbrjson_from_bibpath(input_bibpath: str, special_abbr: dict):
+def make_abbrjson_from_bibpath(input_bibpath: Path, special_abbr: dict):
     lister = AbbrLister(input_bibpath)
-    lister.listup(special_abbr).save(input_bibpath.replace('.bib', '.json'))
+    lister.listup(special_abbr).save(input_bibpath.with_suffix('.json'))
 
 
 if __name__ == '__main__':
@@ -134,7 +130,7 @@ if __name__ == '__main__':
     from .database import DatabaseInfo
 
     config = load_config(Path(__file__).parent / 'config.ini')
-    database = Database(DatabaseInfo())
+    database = NotionDatabase(DatabaseInfo())
 
     add_records_from_local_pdfpath(
         database, config['propnames'], 'tests/testdata/fail-to-record/x-plosone.pdf')

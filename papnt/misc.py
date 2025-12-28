@@ -1,22 +1,33 @@
 from pathlib import Path
-import configparser
+import tomllib
+
+from platformdirs import user_config_dir
+import tomli_w
 
 
-def load_config(ini_path: str) -> dict:
-    def eachsection(parser, section):
-        config = dict(parser.items(section))
-        for key in config:
-            try:
-                config[key] = eval(config[key])
-            except:
-                pass
-        return config
-    if not Path(ini_path).exists():
-        raise FileNotFoundError(f'Not found: {ini_path}')
-    parser = configparser.ConfigParser()
-    parser.read(ini_path)
-    return {section: eachsection(parser, section)
-            for section in parser.sections()}
+IN_PATH_CONFIG = Path(user_config_dir('papnt')) / 'config.toml'
+
+
+def make_config_file_from_template() -> None:
+    if IN_PATH_CONFIG.exists():
+        return
+    in_path_template = Path(__file__).parent / 'config_template.toml'
+    IN_PATH_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    with open(in_path_template, 'rb') as f_src:
+        with open(IN_PATH_CONFIG, 'wb') as f_dst:
+            f_dst.write(f_src.read())
+
+
+def load_config() -> dict:
+    if not IN_PATH_CONFIG.exists():
+        make_config_file_from_template()
+    with open(IN_PATH_CONFIG, 'rb') as f:
+        return tomllib.load(f)
+
+
+def save_config(config_data: dict) -> None:
+    with open(IN_PATH_CONFIG, 'wb') as f:
+        tomli_w.dump(config_data, f)
 
 
 class FailLogger:

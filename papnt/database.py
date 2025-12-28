@@ -6,18 +6,10 @@ from notion_client import Client
 from .misc import load_config
 
 
-class DatabaseInfo:
-    def __init__(self, path_config: Optional[str | Path]=None):
-        path_config = path_config or (Path(__file__).parent / 'config.ini')
-        config = load_config(path_config)
-        self.tokenkey = config['database']['tokenkey']
-        self.database_id = config['database']['database_id']
-
-
-class Database:
-    def __init__(self, dbinfo: DatabaseInfo):
-        self.notion = Client(auth=dbinfo.tokenkey)
-        self.database_id = dbinfo.database_id
+class NotionDatabase:
+    def __init__(self, tokenkey: str, database_id: str):
+        self.notion = Client(auth=tokenkey)
+        self.database_id = database_id
 
     def fetch_records(self, filter: Optional[dict]=None, debugmode: bool=False
                       ) -> List:
@@ -77,6 +69,6 @@ class Database:
 
 if __name__ == '__main__':
     PAGEID = '16dbcba025d580359e95c5c37fd2d25c'
-    database = Database(DatabaseInfo())
+    database = NotionDatabase(DatabaseInfo())
     database.add_children(
         page_id=PAGEID, contents='test script', blocktype='paragraph')

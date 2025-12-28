@@ -2,7 +2,7 @@ from pathlib import Path
 import unittest
 
 from papnt.misc import load_config
-from papnt.database import Database, DatabaseInfo
+from papnt.database import NotionDatabase, DatabaseInfo
 from papnt.mainfunc import (
     add_records_from_local_pdfpath,
     update_unchecked_records_from_doi,
@@ -12,7 +12,7 @@ from papnt.mainfunc import (
 )
 
 config = load_config('papnt/config.ini')
-database = Database(DatabaseInfo())
+database = NotionDatabase(DatabaseInfo())
 
 
 class Test(unittest.TestCase):

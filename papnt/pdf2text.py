@@ -310,9 +310,9 @@ class PDF2ChildrenConverter:
 
 
 if __name__ == '__main__':
-    from .database import Database, DatabaseInfo
+    from .database import NotionDatabase, DatabaseInfo
     TESTPAGEID = '16dbcba025d580359e95c5c37fd2d25c'
-    database = Database(DatabaseInfo())
+    database = NotionDatabase(DatabaseInfo())
     converter = PDF2ChildrenConverter(
         load_config('papnt/config.ini')['grobid']['server'])
     for i_path in Path('tests/testdata').glob('*.pdf'):

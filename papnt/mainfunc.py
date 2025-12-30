@@ -20,15 +20,15 @@ converter = PDF2ChildrenConverter(
 
 
 def add_records_from_local_pdfpath(database: NotionDatabase, propnames: dict,
-                                   in_paths_pdf: Tuple[Path, ...]):
+                                   load_paths_pdf: Tuple[Path, ...]):
 
-    if len(in_paths_pdf) == 1 and in_paths_pdf[0].is_dir():
-        in_paths_pdf = tuple(in_paths_pdf[0].glob('*.pdf'))
+    if len(load_paths_pdf) == 1 and load_paths_pdf[0].is_dir():
+        load_paths_pdf = tuple(load_paths_pdf[0].glob('*.pdf'))
 
     logger = FailLogger()
-    for in_path_pdf in in_paths_pdf:
-        logger.set_path(in_path_pdf)
-        doi = pdf_to_doi(in_path_pdf) or logger.log_no_doi_extracted()
+    for load_path_pdf in load_paths_pdf:
+        logger.set_path(load_path_pdf)
+        doi = pdf_to_doi(load_path_pdf) or logger.log_no_doi_extracted()
         if doi is None:
             continue
         try:
@@ -36,16 +36,16 @@ def add_records_from_local_pdfpath(database: NotionDatabase, propnames: dict,
                    {'info': {'checkbox': True}}
         except Exception as e:
             logger.log_no_doi_info(doi)
-            prop = {'Name': to_notionprop(in_path_pdf.name, 'title')}
+            prop = {'Name': to_notionprop(load_path_pdf.name, 'title')}
         prop = add_fileupload_prop(
-            prop, in_path_pdf, database.notion, propnames['pdf'])
+            prop, load_path_pdf, database.notion, propnames['pdf'])
         created_page_id = database.create(prop)['id']
-        children = converter.convert(in_path_pdf)
+        children = converter.convert(load_path_pdf)
         database.add_children(created_page_id, children, blocktype='toggle',
                               title='Text extracted by GROBID')
-        print(f'Recorded: {in_path_pdf}')
+        print(f'Recorded: {load_path_pdf}')
 
-    shallowest_pdf = min(in_paths_pdf, key=lambda p: len(p.parts))
+    shallowest_pdf = min(load_paths_pdf, key=lambda p: len(p.parts))
     logger.export_to_text(shallowest_pdf.parent)
 
 
@@ -76,7 +76,7 @@ def update_unchecked_records_from_doi(database: NotionDatabase, propnames: dict)
 
 def update_unchecked_records_from_uploadedpdf(
         database: NotionDatabase, propnames: dict):
-    PATH_TEMP_PDF = Path('you-can-delete-this-file.pdf')
+    SAVE_PATH_TEMPPDF = Path('you-can-delete-this-file.pdf')
     filter = {
         'and': [{'property': 'info', 'checkbox': {'equals': False}},
                 {'property': propnames['pdf'],
@@ -85,13 +85,13 @@ def update_unchecked_records_from_uploadedpdf(
         fileurl = record['properties'][propnames['pdf']]
         fileurl = fileurl['files'][0]['file']['url']
         pdffile = requests.get(fileurl).content
-        with PATH_TEMP_PDF.open(mode='wb') as f:
+        with SAVE_PATH_TEMPPDF.open(mode='wb') as f:
             f.write(pdffile)
-        doi = pdf_to_doi(PATH_TEMP_PDF)
-        children = converter.convert(PATH_TEMP_PDF)
+        doi = pdf_to_doi(SAVE_PATH_TEMPPDF)
+        children = converter.convert(SAVE_PATH_TEMPPDF)
         database.add_children(record['id'], children, blocktype='toggle',
                               title='Text extracted by GROBID')
-        PATH_TEMP_PDF.unlink()
+        SAVE_PATH_TEMPPDF.unlink()
         if doi is None:
             continue
         try:
@@ -102,7 +102,7 @@ def update_unchecked_records_from_uploadedpdf(
 
 
 def make_bibfile_from_records(database: NotionDatabase, target: str,
-                              propnames: dict, out_path_bib: str):
+                              propnames: dict, save_path_bib: str):
     propname_to_bibname = {val: key for key, val in propnames.items()}
     filter = {'property': propnames['output_target'],
               'multi_select': {'contains': target}}
@@ -112,21 +112,10 @@ def make_bibfile_from_records(database: NotionDatabase, target: str,
     bib_db = BibDatabase()
     bib_db.entries = entries
     writer = BibTexWriter()
-    open(out_path_bib, 'w', encoding='UTF-8').write(writer.write(bib_db))
+    open(save_path_bib, 'w', encoding='UTF-8').write(writer.write(bib_db))
 
 
-def make_abbrjson_from_bibpath(input_bibpath: Path, special_abbr: dict):
-    lister = AbbrLister(input_bibpath)
-    lister.listup(special_abbr).save(input_bibpath.with_suffix('.json'))
-
-
-if __name__ == '__main__':
-    from .misc import load_config
-    from .database import DatabaseInfo
-
-    config = load_config(Path(__file__).parent / 'config.ini')
-    database = NotionDatabase(DatabaseInfo())
-
-    add_records_from_local_pdfpath(
-        database, config['propnames'], 'tests/testdata/fail-to-record/x-plosone.pdf')
-        # database, config['propnames'], 'tests/testdata/elsevier.pdf')
+def make_abbrjson_from_bibpath(load_path_bib: Path, special_abbr: dict):
+    lister = AbbrLister(load_path_bib)
+    save_path_bib = load_path_bib.with_suffix('.json')
+    lister.listup(special_abbr).save(save_path_bib)

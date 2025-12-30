@@ -16,9 +16,9 @@ class TestPapntCLI(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
         self.ot_dir_test = Path(mkdtemp())
-        self.in_path_config_test = self.ot_dir_test / 'config.toml'
-        IN_PATH_CONFIG = Path('PRIVATE/config_for_test.toml')
-        with open(IN_PATH_CONFIG, 'rb') as f:
+        self.load_path_config_test = self.ot_dir_test / 'config.toml'
+        LOAD_PATH_CONFIG = Path('PRIVATE/config_for_test.toml')
+        with open(LOAD_PATH_CONFIG, 'rb') as f:
             config = tomllib.load(f)
         self.tokenkey = config['database']['tokenkey']
         self.database_id = config['database']['database_id']
@@ -27,17 +27,17 @@ class TestPapntCLI(unittest.TestCase):
         shutil.rmtree(self.ot_dir_test)
 
     def test_main(self):
-        with patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
             result = self.runner.invoke(main, catch_exceptions=False)
             self.assertEqual(result.exit_code, 0)
 
     def test_paths_single_pdf(self):
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
-            in_path = 'tests/testdata/elsevier.pdf'
+            LOAD_PATH = 'tests/testdata/elsevier.pdf'
             result = self.runner.invoke(
-                main, ['paths'] + [in_path],
+                main, ['paths'] + [LOAD_PATH],
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
             if result.exit_code != 0:
@@ -45,14 +45,14 @@ class TestPapntCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
 
     def test_paths_multi_pdf(self):
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             IN_DIR_TESTPDF = Path('tests/testdata')
-            in_paths = [str(in_path)
-                        for in_path in IN_DIR_TESTPDF.glob('*.pdf')]
+            LOAD_PATHs = [str(LOAD_PATH)
+                        for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + in_paths[:3],
+                main, ['paths'] + LOAD_PATHs[:3],
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
             if result.exit_code != 0:
@@ -60,8 +60,8 @@ class TestPapntCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
 
     def test_paths_dir(self):
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             IN_DIR_TESTPDF = 'tests/testdata'
             result = self.runner.invoke(
@@ -77,8 +77,8 @@ class TestPapntCLI(unittest.TestCase):
             for doi in f.readlines():
                 database.create({'DOI':
                     {'rich_text': [{'text': {'content': doi.rstrip('\n')}}]}})
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             result = self.runner.invoke(
                 main, ['doi'], catch_exceptions=False,
@@ -89,8 +89,8 @@ class TestPapntCLI(unittest.TestCase):
 
     def test_pdf(self):
         print('Manually upload test PDFs to Notion before running this test')
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             result = self.runner.invoke(
                 main, ['pdf'],
@@ -107,15 +107,15 @@ class TestPapntCLI(unittest.TestCase):
                 database.create({
                     'DOI': to_notionprop(doi.rstrip('\n'), 'rich_text'),
                     'Cite in': to_notionprop(['test'], 'multi_select')})
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             # paths command
             IN_DIR_TESTPDF = Path('tests/testdata')
-            in_paths = [str(in_path)
-                        for in_path in IN_DIR_TESTPDF.glob('*.pdf')]
+            LOAD_PATHs = [str(LOAD_PATH)
+                        for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + in_paths[0:2],
+                main, ['paths'] + LOAD_PATHs[0:2],
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
             if result.exit_code != 0:
@@ -139,14 +139,14 @@ class TestPapntCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
 
     def test_fail_paths(self):
-        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
-             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
             IN_DIR_TESTPDF = Path('tests/testdata/fail-to-record')
-            in_paths = [str(in_path)
-                        for in_path in IN_DIR_TESTPDF.glob('*.pdf')]
+            LOAD_PATHs = [str(LOAD_PATH)
+                        for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + in_paths,
+                main, ['paths'] + LOAD_PATHs,
                 input=f'{self.tokenkey}\n{self.database_id}')
             if result.exit_code != 0:
                 print(result.exception)

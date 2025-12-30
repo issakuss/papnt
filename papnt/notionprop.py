@@ -10,27 +10,28 @@ import arxiv
 from .const import SKIPWORDS, CROSSREF_TO_BIB
 
 
-def add_fileupload_prop(prop: dict, pdf_path: str | Path, notion: Client,
+def add_fileupload_prop(prop: dict, load_path_pdf: str | Path, notion: Client,
                         propname_pdf: Optional[str]=None) -> dict:
-    def filesize_is_ng(pdf_path: str | Path, max_size_mb: float = 20.) -> bool:
-        return pdf_path.stat().st_size > max_size_mb * 1024 * 1024
+    def filesize_is_ng(load_path_pdf: str | Path, max_size_mb: float = 20.
+                       ) -> bool:
+        return load_path_pdf.stat().st_size > max_size_mb * 1024 * 1024
 
-    def upload_file(pdf_path: str | Path, notion: Client) -> str:
-        filename = pdf_path.name
+    def upload_file(load_path_pdf: str | Path, notion: Client) -> str:
+        filename = load_path_pdf.name
         res = notion.file_uploads.create(mode='single_part', filename=filename)
         upload_id = res['id']
 
-        with open(pdf_path, 'rb') as f:
+        with open(load_path_pdf, 'rb') as f:
             res = notion.file_uploads.send(file_upload_id=upload_id, file=f)
         if res['status'] != 'uploaded':
-            raise RuntimeError(f'File upload failed: {pdf_path}')
+            raise RuntimeError(f'File upload failed: {load_path_pdf}')
 
         return upload_id
 
-    if filesize_is_ng(pdf_path):
-        raise ValueError(f'File size is too large: {pdf_path}')
+    if filesize_is_ng(load_path_pdf):
+        raise ValueError(f'File size is too large: {load_path_pdf}')
 
-    upload_id = upload_file(pdf_path, notion)
+    upload_id = upload_file(load_path_pdf, notion)
 
     prop[propname_pdf or 'pdf'] = {
         'type': 'files',

@@ -42,7 +42,7 @@ def _change_tag(soup, tag, new_tag_name: str):
     return new_tag
 
 
-def _extr_xmltext(client: GrobidClient, i_path: str) -> str:
+def _extr_xmltext(client: GrobidClient, load_path: str) -> str:
     # url = 'https://kermitt2-grobid.hf.space'  # DEMO URL provided by GROBID
     CFG = dict(
         generateIDs=False,
@@ -53,7 +53,7 @@ def _extr_xmltext(client: GrobidClient, i_path: str) -> str:
         tei_coordinates=False,
         segment_sentences=False)
     _, _, text = client.process_pdf(
-        'processFulltextDocument', str(i_path), **CFG)
+        'processFulltextDocument', str(load_path), **CFG)
     if text.startswith('[GENERAL] Could not create temprorary file'):
         raise RuntimeError('Check permission: ' + text)
     return text
@@ -274,8 +274,8 @@ def _elements2children_paragraph(elements: List) -> List[dict]:
     return children
 
 
-def pdf2children(client: GrobidClient, i_path: str | Path) -> str | None:
-    soup = BeautifulSoup(_extr_xmltext(client, i_path), 'xml')
+def pdf2children(client: GrobidClient, load_path: str | Path) -> str | None:
+    soup = BeautifulSoup(_extr_xmltext(client, load_path), 'xml')
 
     biblinks = _extr_bib(soup)
     fig_info = _extr_fig_info(soup)
@@ -304,18 +304,6 @@ class PDF2ChildrenConverter:
                 raise ConnectionError('Failed to connect to GORBID')
             break
 
-    def convert(self, i_path_pdf: str | Path):
+    def convert(self, load_path_pdf: str | Path):
         if self.client:
-            return pdf2children(self.client, i_path_pdf)
-
-
-if __name__ == '__main__':
-    from .database import NotionDatabase, DatabaseInfo
-    TESTPAGEID = '16dbcba025d580359e95c5c37fd2d25c'
-    database = NotionDatabase(DatabaseInfo())
-    converter = PDF2ChildrenConverter(
-        load_config('papnt/config.ini')['grobid']['server'])
-    for i_path in Path('tests/testdata').glob('*.pdf'):
-        children = converter.convert(i_path)
-        database.add_children(TESTPAGEID, children, blocktype='toggle',
-                              title='Text extracted by GROBID')
+            return pdf2children(self.client, load_path_pdf)

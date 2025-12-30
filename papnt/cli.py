@@ -2,7 +2,7 @@ from pathlib import Path
 import click
 from click.core import Context
 
-from .misc import load_config, save_config, IN_PATH_CONFIG
+from .misc import load_config, save_config, LOAD_PATH_CONFIG
 from .database import NotionDatabase
 from .mainfunc import (
     add_records_from_local_pdfpath,
@@ -18,23 +18,23 @@ def main(ctx: Context):
         config=load_config(),
     )
     click.echo('Wellcome to Papnt!')
-    click.echo(f'Your config file is in: {IN_PATH_CONFIG}')
+    click.echo(f'Your config file is in: {LOAD_PATH_CONFIG}')
     if ctx.invoked_subcommand is None:
         click.echo('try `papnt --help` for help')
 
 @main.command()
 @click.argument(
-    'pdfpaths', nargs=-1, type=click.Path(exists=True, path_type=Path))
+    'load_paths_pdf', nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.pass_context
-def paths(ctx: Context, pdfpaths: Path | tuple[Path, ...]):
+def paths(ctx: Context, load_paths_pdf: Path | tuple[Path, ...]):
     """Add record(s) to database by local path to PDF file"""
-    if not pdfpaths:
+    if not load_paths_pdf:
         click.echo('Indicate local path(s) of PDF(s)')
         return
 
     db = _fetch_database(ctx)
     propnames = ctx.obj['config']['propnames']
-    add_records_from_local_pdfpath(db, propnames, pdfpaths)
+    add_records_from_local_pdfpath(db, propnames, load_paths_pdf)
 
 
 @main.command()

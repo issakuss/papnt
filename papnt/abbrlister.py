@@ -11,8 +11,8 @@ def _remove_duplicated_space(dict_: dict):
 
 
 class AbbrLister:
-    def __init__(self, path_bib: str):
-        with open(path_bib, 'r') as f:
+    def __init__(self, load_path_bib: str):
+        with open(load_path_bib, 'r') as f:
             bibtext = f.read()
         parser = BibTexParser()
         bibdatabase = loads(bibtext, parser).entries_dict

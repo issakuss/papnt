@@ -24,18 +24,17 @@ def main(ctx: Context):
 
 @main.command()
 @click.argument(
-    'paths', nargs=-1, type=click.Path(exists=True, path_type=Path))
+    'pdfpaths', nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.pass_context
-def paths(ctx: Context, paths: tuple[Path, ...]):
+def paths(ctx: Context, pdfpaths: Path | tuple[Path, ...]):
     """Add record(s) to database by local path to PDF file"""
-    if not paths:
+    if not pdfpaths:
         click.echo('Indicate local path(s) of PDF(s)')
         return
 
     db = _fetch_database(ctx)
     propnames = ctx.obj['config']['propnames']
-    for pdfpath in paths:
-        add_records_from_local_pdfpath(db, propnames, pdfpath)
+    add_records_from_local_pdfpath(db, propnames, pdfpaths)
 
 
 @main.command()

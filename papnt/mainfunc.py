@@ -1,3 +1,4 @@
+from typing import Tuple
 import requests
 from pathlib import Path
 
@@ -18,22 +19,16 @@ converter = PDF2ChildrenConverter(
     load_config()['grobid']['server'])
 
 
-def add_records_from_local_pdfpath(
-        database: NotionDatabase, propnames: dict, input_pdfpath: str | Path):
+def add_records_from_local_pdfpath(database: NotionDatabase, propnames: dict,
+                                   in_paths_pdf: Tuple[Path, ...]):
 
-    input_pdfpath = Path(input_pdfpath)
-    if input_pdfpath.is_dir():
-        pdf_paths = list(input_pdfpath.glob('**/*.pdf'))
-    elif input_pdfpath.is_file() and input_pdfpath.suffix == '.pdf':
-        pdf_paths = [input_pdfpath]
-    else:
-        raise RuntimeError(f'Invalid path provided: {input_pdfpath}. '
-                          'Please specify a directory or a PDF file.')
+    if len(in_paths_pdf) == 1 and in_paths_pdf[0].is_dir():
+        in_paths_pdf = tuple(in_paths_pdf[0].glob('*.pdf'))
 
     logger = FailLogger()
-    for pdf_path in pdf_paths:
-        logger.set_path(pdf_path)
-        doi = pdf_to_doi(pdf_path) or logger.log_no_doi_extracted()
+    for in_path_pdf in in_paths_pdf:
+        logger.set_path(in_path_pdf)
+        doi = pdf_to_doi(in_path_pdf) or logger.log_no_doi_extracted()
         if doi is None:
             continue
         try:
@@ -41,16 +36,16 @@ def add_records_from_local_pdfpath(
                    {'info': {'checkbox': True}}
         except Exception as e:
             logger.log_no_doi_info(doi)
-            prop = {'Name': to_notionprop(pdf_path.name, 'title')}
+            prop = {'Name': to_notionprop(in_path_pdf.name, 'title')}
         prop = add_fileupload_prop(
-            prop, pdf_path, database.notion, propnames['pdf'])
+            prop, in_path_pdf, database.notion, propnames['pdf'])
         created_page_id = database.create(prop)['id']
-        children = converter.convert(pdf_path)
+        children = converter.convert(in_path_pdf)
         database.add_children(created_page_id, children, blocktype='toggle',
                               title='Text extracted by GROBID')
-        print(f'Recorded: {pdf_path}')
+        print(f'Recorded: {in_path_pdf}')
 
-    shallowest_pdf = min(pdf_paths, key=lambda p: len(p.parts))
+    shallowest_pdf = min(in_paths_pdf, key=lambda p: len(p.parts))
     logger.export_to_text(shallowest_pdf.parent)
 
 

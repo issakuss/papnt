@@ -31,16 +31,42 @@ class TestPapntCLI(unittest.TestCase):
             result = self.runner.invoke(main, catch_exceptions=False)
             self.assertEqual(result.exit_code, 0)
 
-    def test_paths(self):
+    def test_paths_single_pdf(self):
+        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
+             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+
+            in_path = 'tests/testdata/elsevier.pdf'
+            result = self.runner.invoke(
+                main, ['paths'] + [in_path],
+                input=f'{self.tokenkey}\n{self.database_id}',
+                catch_exceptions=False)
+            if result.exit_code != 0:
+                print(result.exception)
+            self.assertEqual(result.exit_code, 0)
+
+    def test_paths_multi_pdf(self):
         with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
              patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
 
             IN_DIR_TESTPDF = Path('tests/testdata')
-            in_paths = [str(in_path) for in_path in IN_DIR_TESTPDF.glob('*.pdf')]
+            in_paths = [str(in_path)
+                        for in_path in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + in_paths,
+                main, ['paths'] + in_paths[:3],
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
+            if result.exit_code != 0:
+                print(result.exception)
+            self.assertEqual(result.exit_code, 0)
+
+    def test_paths_dir(self):
+        with patch('papnt.cli.IN_PATH_CONFIG', self.in_path_config_test), \
+             patch('papnt.misc.IN_PATH_CONFIG', self.in_path_config_test):
+
+            IN_DIR_TESTPDF = 'tests/testdata'
+            result = self.runner.invoke(
+                main, ['paths'] + [IN_DIR_TESTPDF],
+                input=f'{self.tokenkey}\n{self.database_id}')
             if result.exit_code != 0:
                 print(result.exception)
             self.assertEqual(result.exit_code, 0)

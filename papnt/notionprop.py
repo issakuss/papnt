@@ -217,9 +217,8 @@ class NotionPropMaker:
                 authors_.append(name)
             else:
                 raise RuntimeError('Valid author name was not found')
-        if len(authors_) > MAX_N_NOTION_MULTISELECT:
-            extra_authors = authors_[99:-1]
-            self.notes.append('From the 100th to the second to last author'
-                              f': {"; ".join(extra_authors)}')
-            authors_ = authors_[:MAX_N_NOTION_MULTISELECT - 1] + [authors_[-1]]
-        return authors_
+        if len(authors_) <= MAX_N_NOTION_MULTISELECT:
+            return authors_
+
+        return authors_[:MAX_N_NOTION_MULTISELECT - 2] + \
+               [authors_[-1], 'et.al.']

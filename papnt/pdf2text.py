@@ -102,11 +102,11 @@ def _extr_elements(soup: Tag):
 def _extr_figtab_info(figtabs: Tag) -> FigTabInfo:
     fig_info = []
     for figtab in figtabs:
-        tag = figtab['xml:id']
+        tag = figtab.get('xml:id', 'no_tag')
         head_elem = figtab.find('head')
-        head = head_elem.get_text() if head_elem else ""
+        head = head_elem.get_text() if head_elem else ''
         desc_elem = figtab.find('figDesc')
-        desc = desc_elem.get_text() if desc_elem else ""
+        desc = desc_elem.get_text() if desc_elem else ''
         if desc.startswith(head):
             desc = desc[len(head):]
         fig_info.append([tag, head, desc])
@@ -133,11 +133,15 @@ def _extr_table(soup: BeautifulSoup) -> dict:
                     [cell.get_text() for cell in row.find_all('cell')])
             return strlist
 
-        def table2block(table) -> dict:
+        def table2block(table: List[List[str]]) -> dict:
             def row2child(row) -> List[dict]:
                 cells = [_make_simple_rich_text(cell) for cell in row]
                 return {'type': 'table_row',
                         'table_row': {'cells': cells}}
+            if len(table) == 0:
+                return {'type': 'table',
+                        'table': {'table_width': 0,
+                                  'children': []}}
             for i, series in enumerate(table):
                 for ii, cell in enumerate(series):
                     if cell is None:

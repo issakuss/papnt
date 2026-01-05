@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import shutil
 from tempfile import mkdtemp
 from pathlib import Path
@@ -7,10 +7,13 @@ import tomllib
 
 from click.testing import CliRunner
 
+from papnt.misc import load_config, save_config
 from papnt.cli import main
 from papnt.database import NotionDatabase
-from papnt.notionprop import to_notionprop
+from papnt.notionprop import to_notionprop, add_fileupload_prop
 
+
+TEST_GROBID = False
 
 class TestPapntCLI(unittest.TestCase):
     def setUp(self):
@@ -22,6 +25,7 @@ class TestPapntCLI(unittest.TestCase):
             config = tomllib.load(f)
         self.tokenkey = config['database']['tokenkey']
         self.database_id = config['database']['database_id']
+        self.grobidserver = config['grobid']['server']
 
     def tearDown(self):
         shutil.rmtree(self.ot_dir_test)
@@ -29,6 +33,23 @@ class TestPapntCLI(unittest.TestCase):
     def test_main(self):
         with patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
             result = self.runner.invoke(main, catch_exceptions=False)
+            self.assertEqual(result.exit_code, 0)
+
+    def test_paths_grobid(self):
+        with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
+             patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
+
+            config = load_config()
+            config['grobid']['server'] = self.grobidserver
+            save_config(config)
+
+            LOAD_PATH = 'tests/testdata/elsevier.pdf'
+            result = self.runner.invoke(
+                main, ['paths'] + [LOAD_PATH],
+                input=f'{self.tokenkey}\n{self.database_id}',
+                catch_exceptions=False)
+            if result.exit_code != 0:
+                print(result.exception)
             self.assertEqual(result.exit_code, 0)
 
     def test_paths_single_pdf(self):
@@ -48,11 +69,16 @@ class TestPapntCLI(unittest.TestCase):
         with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
              patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
+            if TEST_GROBID:
+                config = load_config()
+                config['grobid']['server'] = self.grobidserver
+                save_config(config)
+
             IN_DIR_TESTPDF = Path('tests/testdata')
-            LOAD_PATHs = [str(LOAD_PATH)
-                        for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
+            load_paths = [str(LOAD_PATH)
+                          for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + LOAD_PATHs[:3],
+                main, ['paths'] + load_paths,
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
             if result.exit_code != 0:
@@ -75,8 +101,9 @@ class TestPapntCLI(unittest.TestCase):
         database = NotionDatabase(self.tokenkey, self.database_id)
         with open('tests/testdata/doi-list-to-test', 'r') as f:
             for doi in f.readlines():
-                database.create({'DOI':
-                    {'rich_text': [{'text': {'content': doi.rstrip('\n')}}]}})
+                prop = {'DOI': to_notionprop(doi.rstrip('\n'), 'rich_text'),
+                        'Name': to_notionprop('', 'title')}
+                database.create(prop, check_info=False)
         with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
              patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
@@ -88,9 +115,22 @@ class TestPapntCLI(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
 
     def test_pdf(self):
-        print('Manually upload test PDFs to Notion before running this test')
+        database = NotionDatabase(self.tokenkey, self.database_id)
+        load_paths = [LOAD_PATH
+                      for LOAD_PATH in Path('tests/testdata').glob('*.pdf')]
+        for load_path in load_paths:
+            prop = add_fileupload_prop(
+                {'Name': to_notionprop(load_path.name, 'title')},
+                load_path, database.notion, 'PDF')
+            database.create(prop, check_info=False)
+
         with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
              patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
+
+            if TEST_GROBID:
+                config = load_config()
+                config['grobid']['server'] = self.grobidserver
+                save_config(config)
 
             result = self.runner.invoke(
                 main, ['pdf'],
@@ -104,18 +144,18 @@ class TestPapntCLI(unittest.TestCase):
         database = NotionDatabase(self.tokenkey, self.database_id)
         with open('tests/testdata/doi-list-to-test', 'r') as f:
             for doi in f.readlines():
-                database.create({
-                    'DOI': to_notionprop(doi.rstrip('\n'), 'rich_text'),
-                    'Cite in': to_notionprop(['test'], 'multi_select')})
+                prop = {'DOI': to_notionprop(doi.rstrip('\n'), 'rich_text'),
+                        'Cite in': to_notionprop(['test'], 'multi_select')}
+                database.create(prop, check_info=False)
         with patch('papnt.cli.LOAD_PATH_CONFIG', self.load_path_config_test), \
              patch('papnt.misc.LOAD_PATH_CONFIG', self.load_path_config_test):
 
-            # paths command
+            # paths command (test input tokenkey and database ID first)
             IN_DIR_TESTPDF = Path('tests/testdata')
-            LOAD_PATHs = [str(LOAD_PATH)
-                        for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
+            LOAD_PATHS = [str(LOAD_PATH)
+                          for LOAD_PATH in IN_DIR_TESTPDF.glob('*.pdf')]
             result = self.runner.invoke(
-                main, ['paths'] + LOAD_PATHs[0:2],
+                main, ['paths'] + LOAD_PATHS[0:1],
                 input=f'{self.tokenkey}\n{self.database_id}',
                 catch_exceptions=False)
             if result.exit_code != 0:

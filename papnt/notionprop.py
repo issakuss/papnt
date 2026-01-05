@@ -91,7 +91,7 @@ def to_notionprop(content: Optional[Any],
 
 class NotionPropMaker:
     def __init__(self):
-        self.notes = []
+        ...
 
     def from_doi(self, doi: str, propnames: dict) -> dict:
         if 'arXiv' in doi:

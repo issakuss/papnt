@@ -3,7 +3,8 @@ from pathlib import Path
 
 from notion_client import Client
 
-from .misc import load_config
+
+MAX_LEN_CHILDREN = 100
 
 
 class NotionDatabase:
@@ -30,11 +31,41 @@ class NotionDatabase:
                 return self
 
     def update_properties(self, page_id: str, prop: Dict):
+        prop['info'] = {'checkbox': True}
         self.notion.pages.update(page_id=page_id, properties=prop)
 
-    def create(self, prop: Dict):
-        return self.notion.pages.create(
-            parent={'database_id': self.database_id}, properties=prop)
+    def update_record(self, page_id: str, prop: Dict,
+                      children: Optional[List]=None):
+        prop = prop | {'info': {'checkbox': True}}
+        self.update_properties(page_id, prop)
+
+        if children is None:
+            children = []
+        for i in range(0, len(children), MAX_LEN_CHILDREN):
+            batch = children[i:i + MAX_LEN_CHILDREN]
+            self.notion.blocks.children.append(
+                block_id=page_id, children=batch)
+
+    def create(self, prop: Dict, children: Optional[List]=None,
+               check_info: bool=True):
+        if children is None:
+            children = []
+        children_till_100 = children[:MAX_LEN_CHILDREN]
+        if check_info:
+            prop = prop | {'info': {'checkbox': True}}
+        newpage = self.notion.pages.create(
+            parent={'database_id': self.database_id},
+            properties=prop, children=children_till_100)
+
+        if len(children) <= MAX_LEN_CHILDREN:
+            return
+
+        children_from_100 = children[MAX_LEN_CHILDREN:]
+        for i in range(0, len(children_from_100), MAX_LEN_CHILDREN):
+            batch = children_from_100[i:i + MAX_LEN_CHILDREN]
+            self.notion.blocks.children.append(
+                block_id=newpage['id'],
+                children=batch)
 
     def add_children(self, page_id: str, contents: str | List | None,
                      blocktype: Literal['paragraph'], title: str='title'):

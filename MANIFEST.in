@@ -1,4 +1,4 @@
-include papnt/config.ini
+include papnt/config_template.toml
 include VERSION
 include REQUIREMENTS
 

@@ -33,7 +33,6 @@ pdf2doi==1.7
 pdfminer.six==20221105
 pdftitle==0.11
 pexpect==4.9.0
-platformdirs==4.5.1
 prompt_toolkit==3.0.52
 ptyprocess==0.7.0
 pure_eval==0.2.3

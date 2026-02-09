@@ -1,11 +1,10 @@
 from pathlib import Path
 import tomllib
 
-from platformdirs import user_config_dir
 import tomli_w
 
 
-LOAD_PATH_CONFIG = Path(user_config_dir('papnt')) / 'config.toml'
+LOAD_PATH_CONFIG = Path.home() / '.config/papnt/config.toml'
 
 
 def make_config_file_from_template() -> None:

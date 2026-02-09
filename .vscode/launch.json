@@ -2,28 +2,45 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "mainfunc",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "papnt.mainfunc"
-        },
-        {
-            "name": "pdf2text",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "papnt.pdf2text"
-        },
-        {
-            "name": "database",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "papnt.database"
-        },
-        {
-            "name": "test",
+            "name": "Test All",
             "type": "debugpy",
             "request": "launch",
             "module": "tests.test"
+        },
+        {
+            "name": "Test DOI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": [
+                "tests/test.py",
+                "-k",
+                "test_doi"
+            ]
+        },
+        {
+            "name": "Test Uploaded PDF",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": [
+                "tests/test.py",
+                "-k",
+                "test_pdf"
+            ]
+        },
+        {
+            "name": "Test makebib",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": [
+                "tests/test.py",
+                "-k",
+                "test_makebib"
+            ]
         }
+
+
     ]
 }

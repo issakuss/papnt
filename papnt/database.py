@@ -17,8 +17,12 @@ class NotionDatabase:
         records = []
         start_cursor = None
         while True:
-            database = self.notion.databases.query(
-                database_id=self.database_id, filter=filter,
+            data_source_id = (
+                self.notion.databases
+                .retrieve(self.database_id)['data_sources'][0]['id'])
+            database = self.notion.data_sources.query(
+                data_source_id=data_source_id,
+                filter=filter,
                 start_cursor=start_cursor)
             records += database['results']
             if not database['has_more']:
@@ -96,10 +100,3 @@ class NotionDatabase:
             return
         self.notion.blocks.children.append(
             block_id=page_id, children=[make_block(contents, blocktype)])
-
-
-if __name__ == '__main__':
-    PAGEID = '16dbcba025d580359e95c5c37fd2d25c'
-    database = NotionDatabase(DatabaseInfo())
-    database.add_children(
-        page_id=PAGEID, contents='test script', blocktype='paragraph')

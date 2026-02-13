@@ -1,6 +1,7 @@
 from pathlib import Path
 import click
 from click.core import Context
+import importlib.metadata
 
 from .misc import load_config, save_config, LOAD_PATH_CONFIG
 from .database import NotionDatabase
@@ -11,17 +12,13 @@ from .mainfunc import (
     make_bibfile_from_records, make_abbrjson_from_bibpath)
 
 
-version = ((Path(__file__).resolve().parent.parent / 'VERSION')
-           .read_text(encoding='utf-8').strip())
-
-
 @click.group(invoke_without_command=True)
 @click.pass_context
 def main(ctx: Context):
     ctx.obj = dict(
         config=load_config(),
     )
-    click.echo('Welcome to Papnt {version}!')
+    click.echo(f'Welcome to Papnt {importlib.metadata.version("papnt")}')
     click.echo(f'Your config file is in: {LOAD_PATH_CONFIG}')
     if ctx.invoked_subcommand is None:
         click.echo('try `papnt --help` for help')
